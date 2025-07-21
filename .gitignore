@@ -161,3 +161,6 @@ debug_*
 *.tar.gz
 *.rar
 *.7z
+
+# other stuff
+intent*.json
