@@ -163,4 +163,4 @@ debug_*
 *.7z
 
 # other stuff
-intent*.json
+intent_api_2_3_7_9_backup.json
