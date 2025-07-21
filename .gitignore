@@ -1,0 +1,163 @@
+# Cisco Catalyst Center Health Monitor - .gitignore
+
+# Environment and Configuration Files
+.env
+.env.local
+.env.production
+.env.development
+.env.test
+*.env
+
+# Sensitive Configuration Files
+config.ini
+config.json
+credentials.json
+secrets.yaml
+secrets.yml
+
+# Generated Reports and Output
+reports/
+*.pdf
+catalyst_health_report_*.pdf
+device_health_report_*.pdf
+assurance_issues_report_*.pdf
+sda_fabric_health_report_*.pdf
+application_health_report_*.pdf
+
+# Log Files
+*.log
+logs/
+catalyst_health_monitor.log
+debug.log
+error.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Virtual Environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+.env/
+catalyst-health-env/
+
+# IDE and Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Backup Files
+*.bak
+*.backup
+*.old
+*.orig
+*.tmp
+
+# OS Generated Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary Files
+temp/
+tmp/
+*.temp
+*.tmp
+
+# API Keys and Tokens (extra safety)
+*api_key*
+*token*
+*secret*
+*credential*
+api_keys.txt
+tokens.txt
+
+# Development and Testing
+test_results/
+.coverage.*
+coverage.xml
+*.cover
+.hypothesis/
+
+# Documentation Build
+docs/_build/
+site/
+
+# Package managers
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Local development scripts
+run_local.sh
+test_local.py
+debug_*
+
+# Certificates and Keys
+*.pem
+*.key
+*.crt
+*.cert
+*.p12
+*.pfx
+
+# Database files (if any)
+*.db
+*.sqlite
+*.sqlite3
+
+# Archive files
+*.zip
+*.tar.gz
+*.rar
+*.7z

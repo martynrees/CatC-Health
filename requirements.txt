@@ -1,0 +1,15 @@
+# Core dependencies for Catalyst Center Health Monitor
+requests>=2.25.0
+urllib3>=1.26.0
+python-dotenv>=0.19.0
+reportlab>=3.6.0
+
+# Optional AI integration dependencies
+# Install these for AI-powered analysis with --ai-summary flag
+# Or use: pip install -r requirements-ai.txt
+langchain>=0.1.0
+langchain-openai>=0.1.0
+
+# Optional Webex Teams integration dependencies
+# Install these for automated Webex messaging
+webexteamssdk>=1.6.0

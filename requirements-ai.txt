@@ -1,0 +1,9 @@
+# Optional dependencies for AI features
+# Install with: pip install -r requirements-ai.txt
+
+# AI-powered health analysis
+langchain>=0.1.0
+langchain-openai>=0.1.0
+
+# Webex Teams integration
+webexteamssdk>=1.6.0
