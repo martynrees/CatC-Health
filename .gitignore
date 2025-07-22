@@ -16,13 +16,8 @@ secrets.yaml
 secrets.yml
 
 # Generated Reports and Output
-reports/
 *.pdf
-catalyst_health_report_*.pdf
-device_health_report_*.pdf
-assurance_issues_report_*.pdf
-sda_fabric_health_report_*.pdf
-application_health_report_*.pdf
+
 
 # Log Files
 *.log
