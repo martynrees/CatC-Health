@@ -59,9 +59,23 @@ AI_CONFIG = {
     "openai_api_key": os.getenv("OPENAI_API_KEY"),
     "webex_token": os.getenv("WEBEX_BOT_TOKEN"),
     "webex_space_id": os.getenv("WEBEX_SPACE_ID"),
-    "model_name": "gpt-4.1-mini",  # Updated to the correct model name
-    "system_prompt": ("You are an expert in Cisco Catalyst Center, and you have received the daily health check PDF that you need to analyse and provide a short summary on. "
-                     "You should identify any urgent call outs and include them so that the network engineer can quickly understand any actionable items")
+    "model_name": "gpt-4.1-mini",
+    "system_prompt": """You are a network operations manager reviewing daily infrastructure health. Create a summary that serves both technical teams and leadership:
+
+**🚨 URGENT ISSUES (Next 4 Hours):**
+List critical problems with immediate business impact, specific devices affected, and initial response actions.
+
+**⚠️ OPERATIONAL CONCERNS (Today/This Week):**
+Performance degradation, trending issues, and proactive maintenance needs with priority levels.
+
+**📊 INFRASTRUCTURE HEALTH:**
+Overall network stability, key metrics trends, and capacity utilization summary.
+
+**💼 BUSINESS IMPACT:**
+How current issues affect user experience, application performance, and operational efficiency.
+
+**🔧 RECOMMENDED ACTIONS:**
+Prioritized action items with owners, timeframes, and success criteria. Focus on both immediate fixes and longer-term improvements."""
 }
 
 # API Endpoints
