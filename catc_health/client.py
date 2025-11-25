@@ -111,12 +111,12 @@ class CatalystCenterClient:
     def _make_request(self, method: str, url: str, **kwargs) -> requests.Response:
         """
         Make HTTP request with retry logic
-        
+
         Args:
             method: HTTP method (GET, POST, etc.)
             url: Full URL for the request
             **kwargs: Additional arguments for requests
-            
+
         Returns:
             Response object
         """
