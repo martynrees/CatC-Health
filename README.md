@@ -1,27 +1,45 @@
 # Cisco Catalyst Center Health Monitor with AI Analysis
 
-A comprehensive Python script that connects to Cisco Catalyst Center and generates daily health reports for network devices and assurance issues in **PDF format**, with optional **AI-powered analysis** and **Webex Teams integration**.
+A modular Python application that connects to Cisco Catalyst Center and generates daily health reports for network devices and assurance issues in **PDF format**, with optional **AI-powered analysis** and **Webex Teams integration**.
+
+## Architecture
+
+The application uses a modular package structure for improved maintainability and testability:
+
+- **`catc_health/`** - Core package with specialized modules:
+  - `client.py` - API client with automatic retry logic
+  - `config.py` - Configuration management and validation
+  - `ai_analyzer.py` - OpenAI GPT-4o-mini integration
+  - `webex_notifier.py` - Webex Teams messaging
+  - `report_generator.py` - PDF report generation
+  - `api_adapter.py` - API field normalization
+  - `utils.py` - Shared utilities
+- **`catalyst_health_monitor.py`** - Main entry point (432 lines)
+- **`tests/`** - Unit test suite with pytest
 
 ## Features
 
 - 🔐 **Secure Authentication**: Token-based authentication with Cisco Catalyst Center
+- 🔄 **Automatic Retry Logic**: Tenacity-based retry with exponential backoff for API resilience
 - 📊 **Device Health Monitoring**: Retrieves and analyzes device health scores
 - ⚠️ **Issue Tracking**: Collects and reports on assurance issues with priority levels
 - 📄 **Professional PDF Reports**: Generates detailed PDF reports with tables and summaries
 - 🎯 **Health Score Filtering**: Supports filtering by health score thresholds (POOR, FAIR, GOOD)
 - 📝 **Comprehensive Logging**: Detailed logging for monitoring and troubleshooting
-- 🔧 **Configurable**: Environment-based configuration for different environments
-- 🤖 **AI-Powered Analysis**: Optional OpenAI integration for intelligent health summaries
+- 🔧 **Configurable**: Environment-based configuration with validation
+- 🤖 **AI-Powered Analysis**: Optional OpenAI GPT-4o-mini integration for intelligent health summaries
 - 📧 **Webex Teams Integration**: Automated messaging and report distribution
 - 🩺 **System Health Monitoring**: ISE health, Maglev services, backups, and system updates
 - 🏗️ **SDA Fabric Health**: Comprehensive Software-Defined Access fabric monitoring
 - 👥 **Client Health Analysis**: Wired and wireless client connectivity monitoring
 - 📱 **Application Health**: Network application performance and availability tracking
+- 🔀 **API Version Compatibility**: Automatic field normalization across API versions
+- ✅ **Unit Tested**: Pytest-based test suite for reliability
 
 
 ## Prerequisites
 
-- Python 3.6 or higher
+- Python 3.8 or higher
 - Access to Cisco Catalyst Center with API permissions
 - Network connectivity to your Catalyst Center instance
 - **Optional**: OpenAI API key for AI-powered analysis
@@ -37,57 +55,76 @@ A comprehensive Python script that connects to Cisco Catalyst Center and generat
 
 2. **Install dependencies:**
    ```bash
-   # Option 1: Install all dependencies (including AI features)
+   # Install all dependencies (recommended)
    pip install -r requirements.txt
 
-   # Option 2: Install core dependencies only
-   pip install requests urllib3 python-dotenv reportlab
-
-   # Option 3: Install core + AI features separately
-   pip install requests urllib3 python-dotenv reportlab
-   pip install -r requirements-ai.txt
-
-   # Option 4: Use the installation script
+   # Alternative: Use the installation script
    ./install_dependencies.sh
+   ```
+
+3. **Configure environment:**
+   ```bash
+   # Copy the example configuration
+   cp .env.example .env
+
+   # Edit .env with your credentials
+   nano .env
    ```## Configuration
 
-### Environment Variables (Recommended)
+### Environment Variables
 
-Create a `.env` file in the project directory:
+The application requires a `.env` file for configuration. Use `.env.example` as a template:
 
+```bash
+cp .env.example .env
+```
+
+**Required Variables:**
 ```env
-# Required: Catalyst Center Configuration
+# Catalyst Center Configuration
 CATALYST_CENTER_URL=https://your-catalyst-center.example.com
 CATALYST_CENTER_USERNAME=your_username
 CATALYST_CENTER_PASSWORD=your_password
+```
 
-# Optional: SSL and API Configuration
+**Optional Variables:**
+```env
+# SSL and API Configuration
 VERIFY_SSL=false
 REQUEST_TIMEOUT=30
 DEFAULT_LIMIT=500
 
-# Optional: AI Integration (for --ai-summary feature)
+# AI Integration (for --ai-summary feature)
 OPENAI_API_KEY=sk-your-openai-api-key-here
 
-# Optional: Webex Teams Integration (for automated messaging)
+# Webex Teams Integration
 WEBEX_BOT_TOKEN=your-webex-bot-token-here
 WEBEX_SPACE_ID=your-webex-space-id-here
 
-# Optional: Report Configuration
+# Report Configuration
 OUTPUT_DIRECTORY=reports
 INCLUDE_ALL_DEVICES=true
 INCLUDE_GOOD_HEALTH_DEVICES=false
 
-# Optional: Health Filtering
+# Health Filtering
 HEALTH_FILTERS=poor,fair
 DEVICE_ROLE_FILTERS=
 ISSUE_SEVERITY_FILTERS=P1,P2
 
-# Optional: Logging Configuration
+# Logging Configuration
 LOG_LEVEL=INFO
 LOG_TO_FILE=true
 LOG_FILE=catalyst_health_monitor.log
 ```
+
+**Configuration Validation:**
+
+The application validates your configuration on startup and will report:
+- Missing `.env` file
+- Missing required variables (URL, username, password)
+- Invalid or unreachable Catalyst Center URL
+
+**Security Note:** The `.env` file is automatically excluded from git tracking. Never commit credentials to version control.
 
 
 
@@ -128,17 +165,26 @@ The `run_health_monitor.sh` script provides enhanced functionality:
 # Show help and usage options
 ./run_health_monitor.sh --help
 
-# Examples with different modes
-./run_health_monitor.sh                    # Standard monitoring
-./run_health_monitor.sh --ai-summary       # AI-enhanced with Webex integration
+# Run standard monitoring
+./run_health_monitor.sh
+
+# Run AI-enhanced monitoring with Webex integration
+./run_health_monitor.sh --ai-summary
 ```
 
-### Test Connectivity
+## Testing
 
-Before running the full monitor, test your connection:
+Run the unit test suite to verify the installation:
 
 ```bash
-python3 test_connection.py
+# Run all tests
+pytest tests/ -v
+
+# Run tests with coverage report
+pytest tests/ --cov=catc_health --cov-report=term-missing
+
+# Run specific test file
+pytest tests/test_health_monitor.py -v
 ```
 
 
@@ -279,82 +325,90 @@ When using the `--ai-summary` flag, the system provides:
 - **Bot Authentication**: Uses Webex Teams SDK with bot tokens
 
 ### Error Handling
-The AI integration includes specific error messages for common scenarios:
-- Missing API key: `"❌ AI Summary Error: The summary was not able to be processed as the API key was not provided."`
-- Quota exceeded: `"❌ AI Summary Error: The summary was not able to be processed as the API quota was exceeded."`
-- API unavailable: `"❌ AI Summary Error: The summary was not able to be processed as the API was not available."`
+The AI and Webex integrations are optional and gracefully degrade if:
+- API keys are missing or invalid
+- Dependencies are not installed
+- API quota is exceeded
+- Services are unavailable
+
+Specific error messages guide users to resolve configuration issues.
 
 ## Dependencies
 
-### Core Dependencies (Required)
+All dependencies are managed in `requirements.txt`:
+
+### Core Dependencies
 - `requests>=2.25.0` - HTTP client for API calls
 - `urllib3>=1.26.0` - HTTP library with SSL support
 - `python-dotenv>=0.19.0` - Environment variable management
 - `reportlab>=3.6.0` - PDF generation library
+- `tenacity>=8.2.0` - Retry logic with exponential backoff
 
-### Optional AI Dependencies
+### AI and Integration Dependencies (Optional)
 - `langchain>=0.1.0` - AI framework for structured LLM interactions
-- `langchain-openai>=0.1.0` - OpenAI integration for LangChain
-
-### Optional Webex Dependencies
+- `langchain-openai>=0.1.0` - OpenAI GPT-4o-mini integration
 - `webexteamssdk>=1.6.0` - Webex Teams API integration
 
-**Note**: The script gracefully handles missing optional dependencies and will continue to function without AI features if these packages are not installed.
+### Testing Dependencies
+- `pytest>=7.4.0` - Unit testing framework
+- `pytest-cov>=4.1.0` - Code coverage reporting
+
+**Note**: The application gracefully handles missing optional dependencies and will continue to function without AI/Webex features if these packages are not installed.
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Authentication Failures**
-   - Verify credentials in `.env` file
+1. **Configuration Validation Errors**
+   - Run the application to see specific validation errors
+   - Ensure `.env` file exists (copy from `.env.example`)
+   - Verify all required variables are set: `CATALYST_CENTER_URL`, `CATALYST_CENTER_USERNAME`, `CATALYST_CENTER_PASSWORD`
+   - Check that Catalyst Center URL includes `https://`
+
+2. **Authentication Failures**
+   - Verify credentials in `.env` file are correct
    - Check network connectivity to Catalyst Center
    - Ensure API access is enabled for your user account
-   - Confirm Catalyst Center URL is correct (include https://)
+   - Confirm the URL points to the correct Catalyst Center instance
 
-2. **SSL Certificate Errors**
+3. **SSL Certificate Errors**
    - Set `VERIFY_SSL=false` in `.env` for self-signed certificates
    - For production, use valid certificates and set `VERIFY_SSL=true`
 
-3. **Import/Dependency Errors**
-   - Run `pip install -r requirements.txt` to install required packages
-   - For AI features: `pip install -r requirements-ai.txt`
+4. **API Request Failures**
+   - The application automatically retries failed requests (3 attempts with exponential backoff)
+   - Check logs for persistent failures that exceed retry attempts
+   - Verify API endpoint permissions for your user account
+   - Increase `REQUEST_TIMEOUT` for slow network connections
+
+5. **Import/Dependency Errors**
+   - Run `pip install -r requirements.txt` to install all dependencies
+   - Ensure Python 3.8+ is being used
+   - Verify virtual environment is activated if using one
    - Use the installation script: `./install_dependencies.sh`
-   - Ensure Python 3.6+ is being used
 
-4. **Shell Script Issues**
-   - Make sure the script is executable: `chmod +x run_health_monitor.sh`
-   - Check virtual environment creation with `./install_dependencies.sh`
-   - Use `./run_health_monitor.sh --help` for usage guidance
-   - Review script output for specific dependency or configuration issues
-
-4. **AI Features Not Working**
+6. **AI Features Not Working**
    - Check if `OPENAI_API_KEY` is set in `.env` file
    - Verify OpenAI API key is valid and has sufficient quota
-   - Install AI dependencies: `pip install langchain langchain-openai`
-   - Review AI error messages in console output
+   - Ensure AI dependencies are installed (langchain, langchain-openai)
+   - Review console output for specific AI error messages
 
-5. **Webex Messages Not Sent**
+7. **Webex Messages Not Sent**
    - Verify `WEBEX_BOT_TOKEN` and `WEBEX_SPACE_ID` in `.env` file
    - Ensure bot has access to the specified Webex space
-   - Install Webex SDK: `pip install webexteamssdk`
+   - Install Webex SDK: included in requirements.txt
    - Check bot permissions in Webex Teams
 
-6. **Empty or Incomplete Reports**
+8. **Empty or Incomplete Reports**
    - Check if devices are registered in Catalyst Center
    - Verify user permissions for device and assurance data access
    - Review API endpoint connectivity (some internal APIs may require elevated access)
    - Check log files for specific API call failures
 
-7. **Performance Issues**
-   - Adjust `DEFAULT_LIMIT` in `.env` to reduce API response sizes
-   - Increase `REQUEST_TIMEOUT` for slow network connections
-   - Use health filters to limit data collection scope
-
-8. **Shell Script Troubleshooting**
-   - The enhanced `run_health_monitor.sh` provides built-in diagnostics
-   - Use `./run_health_monitor.sh --help` for usage information
-   - Review script output for environment validation results
-   - Check virtual environment activation and dependency installation
+9. **Test Failures**
+   - Run `pytest tests/ -v` to see detailed test output
+   - Ensure all dependencies are installed
+   - Check that test fixtures in `tests/fixtures/` are present
 
 ### Logging
 
@@ -370,19 +424,43 @@ grep ERROR catalyst_health_monitor.log
 
 ## Security Notes
 
-- Store credentials securely using environment variables
-- Consider using API keys instead of passwords where possible
-- Use HTTPS and verify SSL certificates in production
-- Regularly rotate credentials
-- Limit API user permissions to read-only access
+- **Never commit `.env` file**: The `.env` file is automatically excluded from git tracking
+- **Use `.env.example`**: Provides a template without sensitive data
+- Store credentials securely and rotate them regularly
+- Consider using API tokens instead of passwords where possible
+- Use HTTPS and verify SSL certificates in production environments
+- Limit API user permissions to read-only access where possible
+- Review application logs regularly and protect them from unauthorized access
 
 ## Contributing
 
+Contributions are welcome! Please follow these guidelines:
+
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+2. Create a feature branch (`git checkout -b feature/your-feature`)
+3. Make your changes following the modular architecture
+4. Add or update tests in `tests/` directory
+5. Run the test suite: `pytest tests/ -v`
+6. Ensure code follows existing patterns and style
+7. Update documentation if needed
+8. Submit a pull request with a clear description
+
+### Development Setup
+
+```bash
+# Clone your fork
+git clone https://github.com/yourusername/CatC-Health.git
+cd CatC-Health
+
+# Install dependencies including testing tools
+pip install -r requirements.txt
+
+# Run tests before making changes
+pytest tests/ -v
+
+# Make your changes, then run tests again
+pytest tests/ --cov=catc_health
+```
 
 ## License
 
@@ -391,6 +469,37 @@ This project is licensed under the MIT License. See LICENSE file for details.
 ## Support
 
 For issues and questions:
-1. Check the troubleshooting section
-2. Review the logs for error details
-3. Open an issue with relevant log excerpts and configuration details (redacted)
+1. Check the troubleshooting section above
+2. Review the logs (`catalyst_health_monitor.log`) for error details
+3. Ensure configuration is valid by checking startup validation messages
+4. Run tests to verify installation: `pytest tests/ -v`
+5. Open an issue on GitHub with:
+   - Relevant log excerpts (redact credentials)
+   - Configuration details (redact sensitive values)
+   - Steps to reproduce the problem
+   - Python version and OS information
+
+## Project Structure
+
+```
+CatC-Health/
+├── catalyst_health_monitor.py    # Main entry point (432 lines)
+├── catc_health/                   # Core package
+│   ├── __init__.py               # Package exports
+│   ├── client.py                 # API client with retry logic
+│   ├── config.py                 # Configuration and validation
+│   ├── ai_analyzer.py            # OpenAI integration
+│   ├── webex_notifier.py         # Webex Teams messaging
+│   ├── report_generator.py       # PDF report generation
+│   ├── api_adapter.py            # API field normalization
+│   └── utils.py                  # Shared utilities
+├── tests/                         # Unit tests
+│   ├── conftest.py               # Pytest fixtures
+│   ├── test_health_monitor.py    # Test suite
+│   └── fixtures/                 # Test data
+├── reports/                       # Generated PDF reports
+├── .env.example                   # Configuration template
+├── requirements.txt               # Python dependencies
+├── run_health_monitor.sh          # Enhanced execution script
+└── install_dependencies.sh        # Dependency installation script
+```
