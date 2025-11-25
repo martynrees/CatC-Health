@@ -1,7 +1,7 @@
 # Cisco Catalyst Center Health Monitor - .gitignore
 
 # Environment and Configuration Files
-#.env
+.env
 .env.local
 .env.production
 .env.development

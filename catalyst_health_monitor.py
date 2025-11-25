@@ -59,7 +59,7 @@ AI_CONFIG = {
     "openai_api_key": os.getenv("OPENAI_API_KEY"),
     "webex_token": os.getenv("WEBEX_BOT_TOKEN"),
     "webex_space_id": os.getenv("WEBEX_SPACE_ID"),
-    "model_name": "gpt-4.1-mini",
+    "model_name": "gpt-4o-mini",
     "system_prompt": """You are a network operations manager reviewing daily infrastructure health. Create a summary that serves both technical teams and leadership:
 
 **🚨 URGENT ISSUES (Next 4 Hours):**
@@ -2477,19 +2477,6 @@ class HealthReportGenerator:
             story.append(Paragraph("SDA Fabric Health Report", styles['Heading2']))
             story.append(Spacer(1, 12))
 
-            # Add debugging for fabric health processing
-            if fabric_health:
-                logging.info(f"Processing {len(fabric_health)} fabric health records")
-                logging.info(f"Sample fabric health data: {fabric_health[0] if fabric_health else 'None'}")
-
-            if all_sites:
-                logging.info(f"Processing {len(all_sites)} sites for mapping")
-                logging.info(f"Sample site data: {all_sites[0] if all_sites else 'None'}")
-
-            if fabric_sites:
-                logging.info(f"Processing {len(fabric_sites)} fabric sites")
-                logging.info(f"Sample fabric site data: {fabric_sites[0] if fabric_sites else 'None'}")
-
             # Process fabric health data - the API already includes site names!
             processed_fabric_data = []
             for health in fabric_health:
@@ -2921,6 +2908,47 @@ class HealthReportGenerator:
         logging.info(f"Combined health PDF report generated: {filepath}")
         return filepath
 
+def validate_config():
+    """Validate configuration before running the health monitor
+    
+    Returns:
+        bool: True if configuration is valid, False otherwise
+    """
+    errors = []
+    
+    # Check if .env file exists
+    if not os.path.exists('.env'):
+        errors.append("Configuration Error: .env file not found")
+        errors.append("Please copy .env.example to .env and configure your settings")
+        return False, errors
+    
+    # Validate required Catalyst Center configuration
+    required_fields = [
+        ("CATALYST_CENTER_URL", CATALYST_CENTER_CONFIG["base_url"], "https://your-catalyst-center.example.com"),
+        ("CATALYST_CENTER_USERNAME", CATALYST_CENTER_CONFIG["username"], "your_username"),
+        ("CATALYST_CENTER_PASSWORD", CATALYST_CENTER_CONFIG["password"], "your_password")
+    ]
+    
+    for field_name, field_value, default_value in required_fields:
+        if not field_value or field_value == default_value:
+            errors.append(f"Missing or invalid configuration: {field_name}")
+    
+    # Validate AI configuration if AI features are requested
+    # (Will be checked in main() based on --ai-summary flag)
+    
+    # Validate URL format
+    if CATALYST_CENTER_CONFIG["base_url"] and not CATALYST_CENTER_CONFIG["base_url"].startswith(("http://", "https://")):
+        errors.append("CATALYST_CENTER_URL must start with http:// or https://")
+    
+    # Validate timeout is a positive number
+    if CATALYST_CENTER_CONFIG["timeout"] <= 0:
+        errors.append("REQUEST_TIMEOUT must be a positive number")
+    
+    if errors:
+        return False, errors
+    
+    return True, []
+
 def main():
     """Main function to run the health monitoring"""
     # Parse command line arguments
@@ -2943,17 +2971,14 @@ def main():
         # Load environment variables
         load_dotenv()
 
-        # Validate configuration
-        if not all([
-            CATALYST_CENTER_CONFIG["base_url"] != "https://your-catalyst-center.example.com",
-            CATALYST_CENTER_CONFIG["username"] != "your_username",
-            CATALYST_CENTER_CONFIG["password"] != "your_password"
-        ]):
-            logging.error("Please update the CATALYST_CENTER_CONFIG with your environment details")
-            logging.error("You can also set environment variables:")
-            logging.error("  CATALYST_CENTER_URL")
-            logging.error("  CATALYST_CENTER_USERNAME")
-            logging.error("  CATALYST_CENTER_PASSWORD")
+        # Validate configuration using new validation function
+        is_valid, validation_errors = validate_config()
+        if not is_valid:
+            logging.error("Configuration validation failed:")
+            for error in validation_errors:
+                logging.error(f"  {error}")
+            logging.error("\nPlease update your .env file with correct values.")
+            logging.error("See .env.example for reference.")
             sys.exit(1)
 
         # Initialize client
