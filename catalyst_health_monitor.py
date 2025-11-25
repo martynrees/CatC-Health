@@ -2910,43 +2910,43 @@ class HealthReportGenerator:
 
 def validate_config():
     """Validate configuration before running the health monitor
-    
+
     Returns:
         bool: True if configuration is valid, False otherwise
     """
     errors = []
-    
+
     # Check if .env file exists
     if not os.path.exists('.env'):
         errors.append("Configuration Error: .env file not found")
         errors.append("Please copy .env.example to .env and configure your settings")
         return False, errors
-    
+
     # Validate required Catalyst Center configuration
     required_fields = [
         ("CATALYST_CENTER_URL", CATALYST_CENTER_CONFIG["base_url"], "https://your-catalyst-center.example.com"),
         ("CATALYST_CENTER_USERNAME", CATALYST_CENTER_CONFIG["username"], "your_username"),
         ("CATALYST_CENTER_PASSWORD", CATALYST_CENTER_CONFIG["password"], "your_password")
     ]
-    
+
     for field_name, field_value, default_value in required_fields:
         if not field_value or field_value == default_value:
             errors.append(f"Missing or invalid configuration: {field_name}")
-    
+
     # Validate AI configuration if AI features are requested
     # (Will be checked in main() based on --ai-summary flag)
-    
+
     # Validate URL format
     if CATALYST_CENTER_CONFIG["base_url"] and not CATALYST_CENTER_CONFIG["base_url"].startswith(("http://", "https://")):
         errors.append("CATALYST_CENTER_URL must start with http:// or https://")
-    
+
     # Validate timeout is a positive number
     if CATALYST_CENTER_CONFIG["timeout"] <= 0:
         errors.append("REQUEST_TIMEOUT must be a positive number")
-    
+
     if errors:
         return False, errors
-    
+
     return True, []
 
 def main():
