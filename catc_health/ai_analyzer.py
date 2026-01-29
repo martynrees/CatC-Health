@@ -52,11 +52,13 @@ class AIHealthAnalyzer:
             return "❌ AI Summary Error: The summary was not able to be processed as the API key was not provided."
 
         try:
-            # Initialize OpenAI client
+            # Initialize OpenAI client with timeout
             llm = ChatOpenAI(
                 model=self.config["model_name"],
                 api_key=self.config["openai_api_key"],
-                temperature=0.1
+                temperature=0.1,
+                timeout=60,  # 60 second timeout for API calls
+                max_retries=2  # Retry failed requests twice
             )
 
             # Prepare the health data summary for analysis
@@ -92,6 +94,8 @@ Keep the summary concise but comprehensive for quick decision making.
                 return "❌ AI Summary Error: The summary was not able to be processed as the API quota was exceeded."
             elif "api" in error_msg and ("unavailable" in error_msg or "connection" in error_msg):
                 return "❌ AI Summary Error: The summary was not able to be processed as the API was not available."
+            elif "timeout" in error_msg or "timed out" in error_msg:
+                return "❌ AI Summary Error: The summary request timed out. The OpenAI API may be slow or unresponsive."
             else:
                 self.logger.error(f"AI analysis failed: {e}")
                 return f"❌ AI Summary Error: Failed to process health data analysis. Error: {str(e)}"
