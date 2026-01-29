@@ -9,6 +9,7 @@ import sys
 import logging
 import argparse
 from datetime import datetime
+from dotenv import load_dotenv
 
 # Import from our modular package
 from catc_health import (
