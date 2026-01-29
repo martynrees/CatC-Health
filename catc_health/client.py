@@ -16,13 +16,43 @@ from tenacity import (
     stop_after_attempt,
     wait_exponential,
     retry_if_exception_type,
-    before_sleep_log
+    before_sleep_log,
+    retry_if_exception
 )
 
 from .config import API_ENDPOINTS
 
 # Suppress InsecureRequestWarning for self-signed certificates
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+
+def should_retry_request(exception: Exception) -> bool:
+    """
+    Determine if a request should be retried based on the exception type
+    
+    Retries on:
+    - Connection errors and timeouts
+    - HTTP 429 (rate limit)
+    - HTTP 502, 503, 504 (server errors)
+    
+    Args:
+        exception: The exception raised during the request
+        
+    Returns:
+        True if the request should be retried, False otherwise
+    """
+    # Always retry on connection errors and timeouts
+    if isinstance(exception, (requests.exceptions.ConnectionError, requests.exceptions.Timeout)):
+        return True
+    
+    # Retry on specific HTTP error status codes
+    if isinstance(exception, requests.exceptions.HTTPError):
+        if hasattr(exception, 'response') and exception.response is not None:
+            status_code = exception.response.status_code
+            # Retry on rate limiting and server errors
+            return status_code in [429, 502, 503, 504]
+    
+    return False
 
 
 class CatalystCenterClient:
@@ -105,12 +135,17 @@ class CatalystCenterClient:
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type((requests.exceptions.ConnectionError, requests.exceptions.Timeout)),
+        retry=retry_if_exception(should_retry_request),
         before_sleep=before_sleep_log(logging.getLogger(__name__), logging.WARNING)
     )
     def _make_request(self, method: str, url: str, **kwargs) -> requests.Response:
         """
         Make HTTP request with retry logic
+        
+        Retries up to 3 times with exponential backoff on:
+        - Connection errors and timeouts
+        - HTTP 429 (rate limit)
+        - HTTP 502, 503, 504 (server errors)
 
         Args:
             method: HTTP method (GET, POST, etc.)
@@ -119,8 +154,15 @@ class CatalystCenterClient:
 
         Returns:
             Response object
+            
+        Raises:
+            requests.exceptions.HTTPError: For non-retryable HTTP errors
+            requests.exceptions.RequestException: For other request failures
         """
-        return self.session.request(method, url, **kwargs)
+        response = self.session.request(method, url, **kwargs)
+        # Raise HTTPError for bad status codes to trigger retry logic if applicable
+        response.raise_for_status()
+        return response
 
     def get_device_health(self, health_filter: Optional[str] = None,
                          device_role: Optional[str] = None,
