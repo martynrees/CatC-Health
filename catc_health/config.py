@@ -64,7 +64,12 @@ API_ENDPOINTS = {
     "maglev_services": "/api/system/v1/maglev/services/summary",
     "system_backup": "/api/system/v1/maglev/backup",
     "backup_history": "/api/system/v1/maglev/backup/history",
-    "system_updates": "/api/system/v1/systemupdater/common/availabe_update_info"
+    "system_updates": "/api/system/v1/systemupdater/common/availabe_update_info",
+    # EoX, Compliance, and Golden Image Endpoints
+    "eox_status": "/dna/intent/api/v1/eox-status/device",
+    "compliance_detail": "/dna/intent/api/v1/compliance/detail",
+    "golden_images": "/dna/intent/api/v1/image/importation/golden",
+    "device_families": "/dna/intent/api/v1/image/importation/device-family-identifiers"
 }
 
 # Health score mapping for filtering

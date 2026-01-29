@@ -242,6 +242,59 @@ def main():
             logging.warning(f"Failed to collect system update data: {e}")
             system_updates = {}
 
+        # Collect EoX (End of Life/Support) status
+        logging.info("Collecting End of Life/Support (EoX) status...")
+        try:
+            eox_status = client.get_eox_status()
+            logging.info(f"Retrieved EoX status for {len(eox_status)} devices")
+        except Exception as e:
+            logging.warning(f"Failed to collect EoX status: {e}")
+            eox_status = []
+
+        # Collect compliance details
+        logging.info("Collecting device compliance details...")
+        try:
+            all_compliance = client.get_compliance_details()
+            # Filter for non-compliant devices only
+            non_compliant_devices = [c for c in all_compliance if c.get('status') != 'COMPLIANT']
+            logging.info(f"Retrieved {len(all_compliance)} compliance records, {len(non_compliant_devices)} non-compliant")
+        except Exception as e:
+            logging.warning(f"Failed to collect compliance details: {e}")
+            all_compliance = []
+            non_compliant_devices = []
+
+        # Collect golden images and device families
+        logging.info("Collecting golden images and device families...")
+        try:
+            golden_images = client.get_golden_images()
+            device_families = client.get_device_families()
+            
+            # Extract device families from inventory (devices in use)
+            inventory_families = set()
+            for device in all_devices if 'all_devices' in locals() else devices:
+                family = device.get('family') or device.get('platformId') or device.get('series')
+                if family:
+                    inventory_families.add(family)
+            
+            # Get families covered by golden images
+            golden_families = set()
+            for image in golden_images:
+                family = image.get('family') or image.get('deviceFamily')
+                if family:
+                    golden_families.add(family)
+            
+            # Find families in inventory without golden images
+            families_without_golden = sorted(inventory_families - golden_families)
+            
+            logging.info(f"Retrieved {len(golden_images)} golden images")
+            logging.info(f"Found {len(inventory_families)} device families in inventory")
+            logging.info(f"Found {len(families_without_golden)} families without golden images")
+            
+        except Exception as e:
+            logging.warning(f"Failed to collect golden image data: {e}")
+            golden_images = []
+            families_without_golden = []
+
         # Compile all health data for AI analysis
         health_data = {
             'all_devices': all_devices if 'all_devices' in locals() else devices,
@@ -255,6 +308,11 @@ def main():
             'system_backup': system_backup,
             'backup_history': backup_history,
             'system_updates': system_updates,
+            'eox_status': eox_status,
+            'compliance': all_compliance,
+            'non_compliant_devices': non_compliant_devices,
+            'golden_images': golden_images,
+            'families_without_golden': families_without_golden,
             'timestamp': datetime.now().isoformat()
         }
 
@@ -265,7 +323,8 @@ def main():
         combined_report = report_generator.generate_combined_pdf(
             devices, all_devices, all_issues, fabric_sites, fabric_health, all_sites,
             applications, clients, ise_health, maglev_services, system_backup,
-            backup_history, system_updates, timestamp
+            backup_history, system_updates, eox_status, non_compliant_devices, 
+            families_without_golden, timestamp
         )
 
         logging.info("Health monitoring completed successfully!")

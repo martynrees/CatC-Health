@@ -1038,6 +1038,9 @@
                              system_backup: Optional[List[Dict[str, Any]]] = None,
                              backup_history: Optional[List[Dict[str, Any]]] = None,
                              system_updates: Optional[Dict[str, Any]] = None,
+                             eox_status: Optional[List[Dict[str, Any]]] = None,
+                             non_compliant_devices: Optional[List[Dict[str, Any]]] = None,
+                             families_without_golden: Optional[List[str]] = None,
                              timestamp: Optional[str] = None) -> str:
         """
         Generate comprehensive PDF report with all health data
@@ -1056,6 +1059,9 @@
             system_backup: List of system backup data
             backup_history: List of backup history data
             system_updates: System update information
+            eox_status: List of devices with EoX status
+            non_compliant_devices: List of non-compliant devices
+            families_without_golden: List of device families without golden images
             timestamp: Timestamp for the report
 
         Returns:
@@ -1794,6 +1800,225 @@
                 ]))
 
                 story.append(update_table)
+
+        # EoX Status Section
+        if eox_status:
+            story.append(PageBreak())
+            story.append(Paragraph("End of Life/Support (EoX) Status", styles['Heading2']))
+            story.append(Spacer(1, 12))
+
+            # EoX Summary
+            total_eox = len(eox_status)
+            eol_devices = [d for d in eox_status if d.get('eoxDate') or d.get('eoLifeDate')]
+            eos_devices = [d for d in eox_status if d.get('eoSupportDate') or d.get('endOfSupportDate')]
+            
+            eox_summary_data = [
+                ['EoX Summary', 'Count'],
+                ['Total Devices with EoX Data', str(total_eox)],
+                ['Devices at/near End of Life', str(len(eol_devices))],
+                ['Devices at/near End of Support', str(len(eos_devices))]
+            ]
+
+            eox_summary_table = Table(eox_summary_data)
+            eox_summary_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 12),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+
+            story.append(eox_summary_table)
+            story.append(Spacer(1, 20))
+
+            # EoX Details Table
+            eox_table_data = [
+                ['Device Name', 'Product ID', 'EoL Date', 'EoS Date', 'Bulletin URL']
+            ]
+
+            for device in eox_status:
+                device_name = device.get('deviceName') or device.get('hostname', 'N/A')
+                product_id = device.get('productId') or device.get('pid', 'N/A')
+                eol_date = device.get('eoxDate') or device.get('eoLifeDate', 'N/A')
+                eos_date = device.get('eoSupportDate') or device.get('endOfSupportDate', 'N/A')
+                bulletin_url = device.get('bulletinUrl') or device.get('url', 'N/A')
+                
+                # Truncate long values
+                if isinstance(device_name, str) and len(device_name) > 30:
+                    device_name = device_name[:27] + '...'
+                if isinstance(bulletin_url, str) and len(bulletin_url) > 40:
+                    bulletin_url = bulletin_url[:37] + '...'
+
+                row = [
+                    str(device_name),
+                    str(product_id),
+                    str(eol_date),
+                    str(eos_date),
+                    str(bulletin_url)
+                ]
+                eox_table_data.append(row)
+
+            eox_table = Table(eox_table_data)
+            eox_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 10),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey])
+            ]))
+
+            story.append(eox_table)
+
+        # Compliance Status Section
+        if non_compliant_devices:
+            story.append(PageBreak())
+            story.append(Paragraph("Device Compliance Status", styles['Heading2']))
+            story.append(Spacer(1, 12))
+
+            # Compliance Summary
+            total_non_compliant = len(non_compliant_devices)
+            
+            # Group by compliance type
+            compliance_types = {}
+            for device in non_compliant_devices:
+                comp_type = device.get('complianceType', 'UNKNOWN')
+                compliance_types[comp_type] = compliance_types.get(comp_type, 0) + 1
+
+            compliance_summary_data = [
+                ['Compliance Summary', 'Count'],
+                ['Total Non-Compliant Devices', str(total_non_compliant)]
+            ]
+            
+            for comp_type, count in sorted(compliance_types.items()):
+                compliance_summary_data.append([f'{comp_type} Issues', str(count)])
+
+            compliance_summary_table = Table(compliance_summary_data)
+            compliance_summary_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 12),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+
+            story.append(compliance_summary_table)
+            story.append(Spacer(1, 20))
+
+            # Compliance Details Table
+            compliance_table_data = [
+                ['Device Name', 'IP Address', 'Compliance Type', 'Status', 'Last Update']
+            ]
+
+            for device in non_compliant_devices:
+                device_name = device.get('deviceName') or device.get('hostName', 'N/A')
+                ip_address = device.get('ipAddress') or device.get('managementIpAddress', 'N/A')
+                comp_type = device.get('complianceType', 'N/A')
+                status = device.get('status', 'NON-COMPLIANT')
+                last_update = device.get('lastUpdateTime', 'N/A')
+                
+                # Truncate long device names
+                if isinstance(device_name, str) and len(device_name) > 30:
+                    device_name = device_name[:27] + '...'
+                
+                # Format timestamp if available
+                if isinstance(last_update, (int, float)):
+                    try:
+                        last_update = datetime.fromtimestamp(last_update/1000).strftime('%Y-%m-%d %H:%M')
+                    except:
+                        last_update = 'N/A'
+
+                row = [
+                    str(device_name),
+                    str(ip_address),
+                    str(comp_type),
+                    str(status),
+                    str(last_update)
+                ]
+                compliance_table_data.append(row)
+
+            compliance_table = Table(compliance_table_data)
+            compliance_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 10),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey])
+            ]))
+
+            story.append(compliance_table)
+
+        # Golden Images Section
+        if families_without_golden:
+            story.append(PageBreak())
+            story.append(Paragraph("Device Families Without Golden Images", styles['Heading2']))
+            story.append(Spacer(1, 12))
+
+            story.append(Paragraph(
+                f"The following {len(families_without_golden)} device families are present in the inventory "
+                "but do not have golden images assigned. Consider assigning golden images to ensure "
+                "consistent software image management.",
+                styles['Normal']
+            ))
+            story.append(Spacer(1, 12))
+
+            # Golden Images Summary
+            golden_summary_data = [
+                ['Summary', 'Count'],
+                ['Device Families Without Golden Images', str(len(families_without_golden))]
+            ]
+
+            golden_summary_table = Table(golden_summary_data)
+            golden_summary_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 12),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+
+            story.append(golden_summary_table)
+            story.append(Spacer(1, 20))
+
+            # Device Families List
+            families_table_data = [['Device Family']]
+            
+            for family in families_without_golden:
+                families_table_data.append([str(family)])
+
+            families_table = Table(families_table_data)
+            families_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 12),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('FONTSIZE', (0, 1), (-1, -1), 10),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey])
+            ]))
+
+            story.append(families_table)
 
         # Build PDF
         doc.build(story)

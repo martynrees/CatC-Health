@@ -552,3 +552,135 @@ class CatalystCenterClient:
         except requests.exceptions.RequestException as e:
             self.logger.error(f"Failed to get system updates: {e}")
             return {}
+
+    def get_eox_status(self, limit: int = 500) -> List[Dict]:
+        """
+        Get End of Life/End of Support status for network devices
+
+        Args:
+            limit: Maximum number of devices to return
+
+        Returns:
+            List of devices with EoX information
+        """
+        url = f"{self.base_url}{API_ENDPOINTS['eox_status']}"
+        params = {"limit": str(limit)}
+
+        try:
+            self.logger.info("Fetching EoX status for network devices...")
+            response = self._make_request(
+                "GET",
+                url,
+                params=params,
+                verify=self.verify_ssl,
+                timeout=self.timeout
+            )
+            response.raise_for_status()
+
+            data = response.json()
+            eox_devices = data.get("response", [])
+            self.logger.info(f"Retrieved EoX status for {len(eox_devices)} devices")
+            return eox_devices
+
+        except requests.exceptions.RequestException as e:
+            self.logger.error(f"Failed to get EoX status: {e}")
+            return []
+
+    def get_compliance_details(self, compliance_type: Optional[str] = None,
+                              limit: int = 500) -> List[Dict]:
+        """
+        Get device compliance details
+
+        Args:
+            compliance_type: Filter by compliance type (e.g., RUNNING_CONFIG, STARTUP_CONFIG)
+            limit: Maximum number of compliance records to return
+
+        Returns:
+            List of compliance details for devices
+        """
+        url = f"{self.base_url}{API_ENDPOINTS['compliance_detail']}"
+        params = {"limit": str(limit)}
+        
+        if compliance_type:
+            params["complianceType"] = compliance_type
+
+        try:
+            self.logger.info(f"Fetching compliance details with filters: {params}")
+            response = self._make_request(
+                "GET",
+                url,
+                params=params,
+                verify=self.verify_ssl,
+                timeout=self.timeout
+            )
+            response.raise_for_status()
+
+            data = response.json()
+            compliance_data = data.get("response", [])
+            self.logger.info(f"Retrieved compliance details for {len(compliance_data)} records")
+            return compliance_data
+
+        except requests.exceptions.RequestException as e:
+            self.logger.error(f"Failed to get compliance details: {e}")
+            return []
+
+    def get_golden_images(self, limit: int = 500) -> List[Dict]:
+        """
+        Get golden (tagged) images
+
+        Args:
+            limit: Maximum number of images to return
+
+        Returns:
+            List of golden images
+        """
+        url = f"{self.base_url}{API_ENDPOINTS['golden_images']}"
+        params = {"limit": str(limit)}
+
+        try:
+            self.logger.info("Fetching golden images...")
+            response = self._make_request(
+                "GET",
+                url,
+                params=params,
+                verify=self.verify_ssl,
+                timeout=self.timeout
+            )
+            response.raise_for_status()
+
+            data = response.json()
+            golden_images = data.get("response", [])
+            self.logger.info(f"Retrieved {len(golden_images)} golden images")
+            return golden_images
+
+        except requests.exceptions.RequestException as e:
+            self.logger.error(f"Failed to get golden images: {e}")
+            return []
+
+    def get_device_families(self) -> List[Dict]:
+        """
+        Get device family identifiers
+
+        Returns:
+            List of device family identifiers
+        """
+        url = f"{self.base_url}{API_ENDPOINTS['device_families']}"
+
+        try:
+            self.logger.info("Fetching device family identifiers...")
+            response = self._make_request(
+                "GET",
+                url,
+                verify=self.verify_ssl,
+                timeout=self.timeout
+            )
+            response.raise_for_status()
+
+            data = response.json()
+            device_families = data.get("response", [])
+            self.logger.info(f"Retrieved {len(device_families)} device families")
+            return device_families
+
+        except requests.exceptions.RequestException as e:
+            self.logger.error(f"Failed to get device families: {e}")
+            return []
