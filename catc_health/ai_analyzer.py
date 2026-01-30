@@ -69,7 +69,8 @@ class AIHealthAnalyzer:
     
     # Model mappings for each provider (cost-effective options)
     PROVIDER_MODELS = {
-        "openai": "gpt-5-nano",  # Updated to GPT-5-nano (43% cheaper, faster, better performance)
+        # Updated to GPT-5-nano (43% cheaper, better performance)
+        "openai": "gpt-5-nano",
         "google": "gemini-1.5-flash",
         "anthropic": "claude-3-haiku-20240307"
     }
@@ -116,7 +117,9 @@ class AIHealthAnalyzer:
             if not api_key:
                 raise ValueError("OPENAI_API_KEY not configured in .env file")
             
-            self.logger.info("Using OpenAI provider (gpt-5-nano)")
+            self.logger.info(
+                "Using OpenAI provider (gpt-5-nano)"
+            )
             return ChatOpenAI(
                 model=self.PROVIDER_MODELS["openai"],
                 api_key=api_key,
@@ -134,7 +137,9 @@ class AIHealthAnalyzer:
             if not api_key:
                 raise ValueError("GOOGLE_API_KEY not configured in .env file")
             
-            self.logger.info("Using Google Gemini provider (gemini-1.5-flash)")
+            self.logger.info(
+                "Using Google Gemini provider (gemini-1.5-flash)"
+            )
             return ChatGoogleGenerativeAI(
                 model=self.PROVIDER_MODELS["google"],
                 google_api_key=api_key,
@@ -152,7 +157,9 @@ class AIHealthAnalyzer:
             if not api_key:
                 raise ValueError("ANTHROPIC_API_KEY not configured in .env file")
             
-            self.logger.info("Using Anthropic Claude provider (claude-3-haiku)")
+            self.logger.info(
+                "Using Anthropic Claude provider (claude-3-haiku)"
+            )
             return ChatAnthropic(
                 model=self.PROVIDER_MODELS["anthropic"],
                 anthropic_api_key=api_key,

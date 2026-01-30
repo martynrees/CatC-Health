@@ -14,7 +14,19 @@ load_dotenv()
 
 # Helper function for safe integer conversion
 def _safe_int(value: str, default: int) -> int:
-    """Safely convert string to int with fallback to default"""
+    """
+    Safely convert string to integer with fallback to default.
+    
+    Parameters:
+        value (str): The value to convert to integer
+        default (int): Fallback value if conversion fails
+    
+    Returns:
+        int: Converted value or default if conversion fails
+    
+    Raises:
+        None: Exceptions are handled internally
+    """
     try:
         return int(value)
     except (ValueError, TypeError):
@@ -37,22 +49,27 @@ AI_CONFIG = {
     "google_api_key": os.getenv("GOOGLE_API_KEY"),
     "anthropic_api_key": os.getenv("ANTHROPIC_API_KEY"),
     "model_name": "gpt-4o-mini",  # Default for OpenAI, overridden per provider
-    "system_prompt": """You are a network operations manager reviewing daily infrastructure health. Create a summary that serves both technical teams and leadership:
-
-**🚨 URGENT ISSUES (Next 4 Hours):**
-List critical problems with immediate business impact, specific devices affected, and initial response actions.
-
-**⚠️ OPERATIONAL CONCERNS (Today/This Week):**
-Performance degradation, trending issues, and proactive maintenance needs with priority levels.
-
-**📊 INFRASTRUCTURE HEALTH:**
-Overall network stability, key metrics trends, and capacity utilization summary.
-
-**💼 BUSINESS IMPACT:**
-How current issues affect user experience, application performance, and operational efficiency.
-
-**🔧 RECOMMENDED ACTIONS:**
-Prioritized action items with owners, timeframes, and success criteria. Focus on both immediate fixes and longer-term improvements."""
+    "system_prompt": (
+        "You are a network operations manager reviewing daily "
+        "infrastructure health. Create a summary that serves both "
+        "technical teams and leadership:\n\n"
+        "**🚨 URGENT ISSUES (Next 4 Hours):**\n"
+        "List critical problems with immediate business impact, "
+        "specific devices affected, and initial response actions.\n\n"
+        "**⚠️ OPERATIONAL CONCERNS (Today/This Week):**\n"
+        "Performance degradation, trending issues, and proactive "
+        "maintenance needs with priority levels.\n\n"
+        "**📊 INFRASTRUCTURE HEALTH:**\n"
+        "Overall network stability, key metrics trends, and "
+        "capacity utilization summary.\n\n"
+        "**💼 BUSINESS IMPACT:**\n"
+        "How current issues affect user experience, application "
+        "performance, and operational efficiency.\n\n"
+        "**🔧 RECOMMENDED ACTIONS:**\n"
+        "Prioritized action items with owners, timeframes, and "
+        "success criteria. Focus on both immediate fixes and "
+        "longer-term improvements."
+    )
 }
 
 # Webex Teams Notification Configuration

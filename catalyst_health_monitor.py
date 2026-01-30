@@ -29,19 +29,31 @@ from catc_health import (
 def main():
     """Main function to run the health monitoring"""
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description='Cisco Catalyst Center Health Monitor with Multi-Channel Notifications')
+    parser = argparse.ArgumentParser(
+        description='Cisco Catalyst Center Health Monitor with '
+                    'Multi-Channel Notifications'
+    )
     
     # AI analysis flag (independent from notifications)
     parser.add_argument('--ai-summary', action='store_true',
                        help='Enable AI-powered health analysis summary')
     
     # Notification channel flags (override .env settings)
-    parser.add_argument('--notify-email', action='store_true',
-                       help='Send notification via email (overrides .env setting)')
-    parser.add_argument('--notify-webex', action='store_true',
-                       help='Send notification via Webex Teams (overrides .env setting)')
-    parser.add_argument('--notify-teams', action='store_true',
-                       help='Send notification via MS Teams (overrides .env setting)')
+    parser.add_argument(
+        '--notify-email',
+        action='store_true',
+        help='Send notification via email (overrides .env setting)'
+    )
+    parser.add_argument(
+        '--notify-webex',
+        action='store_true',
+        help='Send via Webex Teams (overrides .env setting)'
+    )
+    parser.add_argument(
+        '--notify-teams',
+        action='store_true',
+        help='Send via MS Teams (overrides .env setting)'
+    )
     parser.add_argument('--no-notifications', action='store_true',
                        help='Disable all notifications for this run')
     
@@ -110,14 +122,31 @@ def main():
             devices = []
             for device in all_devices:
                 health_score = device.get('overallHealth', 0)
-                if isinstance(health_score, (int, float)) and health_score <= 7:
+                health_score = device.get('overallHealth', 0)
+                is_poor_or_fair = (
+                    isinstance(health_score, (int, float))
+                    and health_score <= 7
+                )
+                if is_poor_or_fair:
                     devices.append(device)
 
-            poor_count = len([d for d in devices if d.get('overallHealth', 0) <= 3])
-            fair_count = len([d for d in devices if 3 < d.get('overallHealth', 0) <= 7])
+            poor_count = len([
+                d for d in devices
+                if d.get('overallHealth', 0) <= 3
+            ])
+            fair_count = len([
+                d for d in devices
+                if 3 < d.get('overallHealth', 0) <= 7
+            ])
 
-            logging.info(f"Retrieved {len(all_devices)} total devices, filtered to {len(devices)} poor/fair health devices")
-            logging.info(f"Breakdown: {poor_count} poor health, {fair_count} fair health devices")
+            logging.info(
+                f"Retrieved {len(all_devices)} total devices, "
+                f"filtered to {len(devices)} poor/fair health devices"
+            )
+            logging.info(
+                f"Breakdown: {poor_count} poor health, "
+                f"{fair_count} fair health devices"
+            )
         except Exception as e:
             logging.warning(f"Failed to collect device health data: {e}")
             devices = []
@@ -132,12 +161,24 @@ def main():
             logging.warning(f"Failed to collect assurance issues: {e}")
 
         # Collect critical and high priority intent issues
-        logging.info("Collecting critical (P1) and high priority (P2) intent issues...")
+        logging.info(
+            "Collecting critical (P1) and high priority (P2) "
+            "intent issues..."
+        )
         try:
-            p1_issues = client.get_intent_issues(priority="P1", issue_status="active")
-            p2_issues = client.get_intent_issues(priority="P2", issue_status="active")
+            p1_issues = client.get_intent_issues(
+                priority="P1",
+                issue_status="active"
+            )
+            p2_issues = client.get_intent_issues(
+                priority="P2",
+                issue_status="active"
+            )
             intent_issues = p1_issues + p2_issues
-            logging.info(f"Retrieved {len(p1_issues)} P1 and {len(p2_issues)} P2 intent issues")
+            logging.info(
+                f"Retrieved {len(p1_issues)} P1 and "
+                f"{len(p2_issues)} P2 intent issues"
+            )
         except Exception as e:
             logging.warning(f"Failed to collect intent issues: {e}")
 
@@ -166,7 +207,10 @@ def main():
         logging.info("Collecting SDA fabric health...")
         try:
             fabric_health = client.get_fabric_site_health()
-            logging.info(f"Retrieved fabric health data for {len(fabric_health)} sites")
+            logging.info(
+                f"Retrieved fabric health data for "
+                f"{len(fabric_health)} sites"
+            )
 
             # Debug: Show sample data structure
             if fabric_health and len(fabric_health) > 0:
@@ -185,10 +229,17 @@ def main():
         # Collect application health (Poor and Fair applications)
         logging.info("Collecting application health...")
         try:
-            poor_applications = client.get_application_health(application_health="POOR")
-            fair_applications = client.get_application_health(application_health="FAIR")
+            poor_applications = client.get_application_health(
+                application_health="POOR"
+            )
+            fair_applications = client.get_application_health(
+                application_health="FAIR"
+            )
             applications = poor_applications + fair_applications
-            logging.info(f"Retrieved {len(applications)} applications with Poor or Fair health")
+            logging.info(
+                f"Retrieved {len(applications)} applications "
+                f"with Poor or Fair health"
+            )
         except Exception as e:
             logging.warning(f"Failed to collect application health data: {e}")
             applications = []
@@ -482,25 +533,47 @@ def main():
                 wireless_fair = len([c for c in clients if c.get('scoreCategory') == 'FAIR' and c.get('connectedDevice', {}).get('connectionStatus') == 'WIRELESS'])
             else:
                 # For Data API responses - categorize by health score
-                def categorize_health(score):
-                    if not isinstance(score, (int, float)):
-                        return 'UNKNOWN'
-                    if score < 4:
-                        return 'POOR'
-                    elif score < 7:
-                        return 'FAIR'
-                    else:
-                        return 'GOOD'
-
-                poor_client_count = len([c for c in clients if categorize_health(c.get('health', {}).get('overallScore', 0)) == 'POOR'])
-                fair_client_count = len([c for c in clients if categorize_health(c.get('health', {}).get('overallScore', 0)) == 'FAIR'])
-                good_client_count = len([c for c in clients if categorize_health(c.get('health', {}).get('overallScore', 0)) == 'GOOD'])
+                # Use centralized categorize_health from utils
+                poor_clients = [
+                    c for c in clients
+                    if categorize_health(
+                        c.get('health', {}).get('overallScore', 0)
+                    ) == 'POOR'
+                ]
+                fair_clients = [
+                    c for c in clients
+                    if categorize_health(
+                        c.get('health', {}).get('overallScore', 0)
+                    ) == 'FAIR'
+                ]
+                good_clients = [
+                    c for c in clients
+                    if categorize_health(
+                        c.get('health', {}).get('overallScore', 0)
+                    ) == 'GOOD'
+                ]
+                
+                poor_client_count = len(poor_clients)
+                fair_client_count = len(fair_clients)
+                good_client_count = len(good_clients)
 
                 # Separate wired and wireless
-                wired_poor = len([c for c in clients if categorize_health(c.get('health', {}).get('overallScore', 0)) == 'POOR' and c.get('type', '').upper() == 'WIRED'])
-                wired_fair = len([c for c in clients if categorize_health(c.get('health', {}).get('overallScore', 0)) == 'FAIR' and c.get('type', '').upper() == 'WIRED'])
-                wireless_poor = len([c for c in clients if categorize_health(c.get('health', {}).get('overallScore', 0)) == 'POOR' and c.get('type', '').upper() == 'WIRELESS'])
-                wireless_fair = len([c for c in clients if categorize_health(c.get('health', {}).get('overallScore', 0)) == 'FAIR' and c.get('type', '').upper() == 'WIRELESS'])
+                wired_poor = len([
+                    c for c in poor_clients
+                    if c.get('type', '').upper() == 'WIRED'
+                ])
+                wired_fair = len([
+                    c for c in fair_clients
+                    if c.get('type', '').upper() == 'WIRED'
+                ])
+                wireless_poor = len([
+                    c for c in poor_clients
+                    if c.get('type', '').upper() == 'WIRELESS'
+                ])
+                wireless_fair = len([
+                    c for c in fair_clients
+                    if c.get('type', '').upper() == 'WIRELESS'
+                ])
 
             print(f"\nClient Health Breakdown:")
             print(f"  Total Poor Health: {poor_client_count} (Wired: {wired_poor}, Wireless: {wireless_poor})")
