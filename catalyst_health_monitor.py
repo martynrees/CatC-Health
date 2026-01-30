@@ -15,10 +15,13 @@ from dotenv import load_dotenv
 from catc_health import (
     CatalystCenterClient,
     AIHealthAnalyzer,
-    WebexNotifier,
+    NotificationManager,
     HealthReportGenerator,
     CATALYST_CENTER_CONFIG,
     AI_CONFIG,
+    WEBEX_CONFIG,
+    EMAIL_CONFIG,
+    TEAMS_CONFIG,
     validate_config,
     categorize_health
 )
@@ -26,9 +29,22 @@ from catc_health import (
 def main():
     """Main function to run the health monitoring"""
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description='Cisco Catalyst Center Health Monitor with AI Analysis')
+    parser = argparse.ArgumentParser(description='Cisco Catalyst Center Health Monitor with Multi-Channel Notifications')
+    
+    # AI analysis flag (independent from notifications)
     parser.add_argument('--ai-summary', action='store_true',
-                       help='Enable AI-powered analysis and Webex messaging of health report')
+                       help='Enable AI-powered health analysis summary')
+    
+    # Notification channel flags (override .env settings)
+    parser.add_argument('--notify-email', action='store_true',
+                       help='Send notification via email (overrides .env setting)')
+    parser.add_argument('--notify-webex', action='store_true',
+                       help='Send notification via Webex Teams (overrides .env setting)')
+    parser.add_argument('--notify-teams', action='store_true',
+                       help='Send notification via MS Teams (overrides .env setting)')
+    parser.add_argument('--no-notifications', action='store_true',
+                       help='Disable all notifications for this run')
+    
     args = parser.parse_args()
 
     # Setup logging
@@ -322,34 +338,81 @@ def main():
         logging.info(f"Report generated:")
         logging.info(f"  - Comprehensive Health Report: {combined_report}")
 
-        # Handle AI analysis and Webex messaging if requested
-        webex_success = False
-        if args.ai_summary:
-            logging.info("AI analysis requested, generating summary...")
-
-            # Initialize AI analyzer
-            ai_analyzer = AIHealthAnalyzer(AI_CONFIG)
-
-            # Generate AI summary
-            ai_summary = ai_analyzer.analyze_health_data(health_data)
-
-            # Print AI summary to console
-            print("\n" + "="*70)
-            print("🤖 AI HEALTH ANALYSIS SUMMARY")
-            print("="*70)
-            print(ai_summary)
-            print("="*70)
-
-            # Send to Webex if configured
-            webex_notifier = WebexNotifier(AI_CONFIG)
-            webex_success = webex_notifier.send_health_report(ai_summary, combined_report)
-
-            if webex_success:
-                logging.info("Health report sent to Webex successfully")
-                print("\n📧 Health report sent to Webex space successfully!")
+        # Determine CLI overrides for notification channels
+        cli_overrides = {}
+        if args.no_notifications:
+            # Disable all channels
+            cli_overrides = {'email': False, 'webex': False, 'teams': False}
+        else:
+            # Apply individual channel overrides
+            if args.notify_email:
+                cli_overrides['email'] = True
+            if args.notify_webex:
+                cli_overrides['webex'] = True
+            if args.notify_teams:
+                cli_overrides['teams'] = True
+        
+        # Initialize notification manager
+        notification_manager = NotificationManager(EMAIL_CONFIG, WEBEX_CONFIG, TEAMS_CONFIG)
+        
+        # Determine which channels are enabled
+        enabled_channels = notification_manager.get_enabled_channels(cli_overrides)
+        
+        # Determine if we need AI summary
+        need_ai_summary = args.ai_summary or len(enabled_channels) > 0
+        
+        # Generate AI summary if needed
+        ai_summary = None
+        if need_ai_summary:
+            logging.info("Generating AI-powered health analysis...")
+            try:
+                ai_analyzer = AIHealthAnalyzer(AI_CONFIG)
+                ai_summary = ai_analyzer.analyze_health_data(health_data)
+                
+                if args.ai_summary:
+                    # Print AI summary to console if explicitly requested
+                    print("\n" + "="*70)
+                    print("🤖 AI HEALTH ANALYSIS SUMMARY")
+                    print("="*70)
+                    print(ai_summary)
+                    print("="*70)
+            except Exception as e:
+                logging.warning(f"Failed to generate AI summary: {e}")
+                ai_summary = None
+        
+        # Send notifications if channels are enabled
+        if enabled_channels:
+            # Prepare notification message
+            if ai_summary:
+                notification_message = ai_summary
             else:
-                logging.warning("Failed to send health report to Webex")
-                print("\n⚠️  Failed to send health report to Webex. Check logs for details.")
+                # Create basic summary if no AI
+                notification_message = _create_basic_summary(health_data, devices, all_issues)
+            
+            # Send to all enabled channels
+            logging.info(f"Sending notifications to {len(enabled_channels)} channel(s)...")
+            results = notification_manager.send_notifications(
+                message=notification_message,
+                pdf_filepath=combined_report,
+                enabled_channels=enabled_channels
+            )
+            
+            # Report results
+            successful = sum(1 for success in results.values() if success)
+            if successful > 0:
+                print(f"\n📧 Notifications sent successfully to {successful}/{len(results)} channel(s)")
+                for channel, success in results.items():
+                    status = "✅" if success else "❌"
+                    print(f"   {status} {channel.capitalize()}")
+            else:
+                print("\n⚠️  All notification channels failed. Check logs for details.")
+        elif args.ai_summary or any([args.notify_email, args.notify_webex, args.notify_teams]):
+            # User requested notifications but none are configured
+            print("\n⚠️  No notification channels are configured. Check your .env file.")
+            print("     To enable notifications, set:")
+            print("       ENABLE_EMAIL_NOTIFICATIONS=true  (and configure SMTP settings)")
+            print("       ENABLE_WEBEX_NOTIFICATIONS=true  (and configure bot token)")
+            print("       ENABLE_TEAMS_NOTIFICATIONS=true  (and configure webhook URL)")
 
         # Print summary
         print("\n" + "="*60)
@@ -358,6 +421,15 @@ def main():
         print(f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"Total Devices: {len(devices)}")
         print(f"Total Issues: {len(all_issues)} (Assurance: {len(assurance_issues)}, Intent P1/P2: {len(intent_issues)})")
+        
+        # Print device breakdown by health status
+        poor_count = len([d for d in devices if categorize_health(d.get('overallHealth', 0)) == 'POOR'])
+        fair_count = len([d for d in devices if categorize_health(d.get('overallHealth', 0)) == 'FAIR'])
+        good_count = len([d for d in devices if categorize_health(d.get('overallHealth', 0)) == 'GOOD'])
+        print(f"\nDevice Health Breakdown:")
+        print(f"  🔴 Poor:  {poor_count} devices")
+        print(f"  🟡 Fair:  {fair_count} devices")
+        print(f"  🟢 Good:  {good_count} devices")
         print(f"Total SDA Fabric Sites: {len(fabric_sites)}")
 
         # Device health breakdown
@@ -465,9 +537,15 @@ def main():
         print(f"\nReports Generated:")
         print(f"  📊 Comprehensive Health Report: {combined_report}")
 
-        if args.ai_summary:
-            print(f"  🤖 AI Analysis: {'✅ Completed' if 'ai_summary' in locals() else '❌ Failed'}")
-            print(f"  📧 Webex Notification: {'✅ Sent' if webex_success else '❌ Failed'}")
+        # Show notification status
+        if enabled_channels:
+            print(f"\n  📧 Notifications:")
+            for channel in enabled_channels:
+                status = "✅ Sent" if results.get(channel) else "❌ Failed"
+                print(f"     {channel.capitalize()}: {status}")
+        
+        if args.ai_summary and ai_summary:
+            print(f"  🤖 AI Analysis: ✅ Completed")
 
         print("="*60)
 
@@ -477,6 +555,60 @@ def main():
     except Exception as e:
         logging.error(f"Unexpected error: {str(e)}")
         sys.exit(1)
+
+
+def _create_basic_summary(health_data: dict, devices: list, issues: list) -> str:
+    """
+    Create a basic health summary when AI is not available.
+    
+    Args:
+        health_data: Dictionary of collected health data
+        devices: List of devices
+        issues: List of issues
+        
+    Returns:
+        Formatted basic summary text
+    """
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    
+    # Count devices by health
+    poor_devices = [d for d in devices if categorize_health(d.get('overallHealth', 0)) == 'POOR']
+    fair_devices = [d for d in devices if categorize_health(d.get('overallHealth', 0)) == 'FAIR']
+    good_devices = [d for d in devices if categorize_health(d.get('overallHealth', 0)) == 'GOOD']
+    
+    # Count critical issues (P1/P2)
+    critical_issues = [i for i in issues if i.get('priority') in ['P1', 'P2']]
+    
+    summary = f"""
+**Cisco Catalyst Center Health Report**
+Generated: {timestamp}
+
+**DEVICE HEALTH SUMMARY**
+• Total Devices: {len(devices)}
+• Poor Health: {len(poor_devices)} devices
+• Fair Health: {len(fair_devices)} devices  
+• Good Health: {len(good_devices)} devices
+
+**ISSUE SUMMARY**
+• Total Issues: {len(issues)}
+• Critical Issues (P1/P2): {len(critical_issues)}
+
+**SYSTEM HEALTH**
+• ISE Nodes: {len(health_data.get('ise_health', []))}
+• SDA Fabric Sites: {len(health_data.get('sda_health', []))}
+• Client Issues: {len(health_data.get('clients', []))}
+
+"""
+    
+    # Add top critical issues if any
+    if critical_issues:
+        summary += "**TOP CRITICAL ISSUES:**\n"
+        for issue in critical_issues[:5]:
+            summary += f"• {issue.get('name', 'Unknown')}\n"
+    
+    summary += "\n*For detailed analysis, please review the attached PDF report.*"
+    
+    return summary.strip()
 
 
 if __name__ == "__main__":
