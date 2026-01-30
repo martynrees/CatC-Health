@@ -29,11 +29,9 @@ CATALYST_CENTER_CONFIG = {
     "timeout": _safe_int(os.getenv("REQUEST_TIMEOUT", "30"), 30)
 }
 
-# AI and Webex Configuration
+# AI and Notification Configuration
 AI_CONFIG = {
     "openai_api_key": os.getenv("OPENAI_API_KEY"),
-    "webex_token": os.getenv("WEBEX_BOT_TOKEN"),
-    "webex_space_id": os.getenv("WEBEX_SPACE_ID"),
     "model_name": "gpt-4o-mini",
     "system_prompt": """You are a network operations manager reviewing daily infrastructure health. Create a summary that serves both technical teams and leadership:
 
@@ -51,6 +49,30 @@ How current issues affect user experience, application performance, and operatio
 
 **🔧 RECOMMENDED ACTIONS:**
 Prioritized action items with owners, timeframes, and success criteria. Focus on both immediate fixes and longer-term improvements."""
+}
+
+# Webex Teams Notification Configuration
+WEBEX_CONFIG = {
+    "enabled": os.getenv("ENABLE_WEBEX_NOTIFICATIONS", "false").lower() == "true",
+    "webex_token": os.getenv("WEBEX_BOT_TOKEN"),
+    "webex_space_id": os.getenv("WEBEX_SPACE_ID")
+}
+
+# Email Notification Configuration
+EMAIL_CONFIG = {
+    "enabled": os.getenv("ENABLE_EMAIL_NOTIFICATIONS", "false").lower() == "true",
+    "smtp_server": os.getenv("SMTP_SERVER"),
+    "smtp_port": _safe_int(os.getenv("SMTP_PORT", "587"), 587),
+    "smtp_username": os.getenv("SMTP_USERNAME"),
+    "smtp_password": os.getenv("SMTP_PASSWORD"),
+    "smtp_use_tls": os.getenv("SMTP_USE_TLS", "true").lower() == "true",
+    "smtp_use_ssl": os.getenv("SMTP_USE_SSL", "false").lower() == "true",
+    "smtp_timeout": _safe_int(os.getenv("SMTP_TIMEOUT", "30"), 30),
+    "email_from": os.getenv("EMAIL_FROM"),
+    "email_to": os.getenv("EMAIL_TO"),
+    "email_cc": os.getenv("EMAIL_CC", ""),
+    "email_bcc": os.getenv("EMAIL_BCC", ""),
+    "email_subject": os.getenv("EMAIL_SUBJECT", "Catalyst Center Health Report - {date}")
 }
 
 # API Endpoints

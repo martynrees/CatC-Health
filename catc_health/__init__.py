@@ -7,10 +7,14 @@ A modular package for monitoring and reporting on Cisco Catalyst Center health.
 from .client import CatalystCenterClient
 from .ai_analyzer import AIHealthAnalyzer
 from .webex_notifier import WebexNotifier
+from .email_notifier import EmailNotifier
+from .notification_channel import NotificationChannel
 from .report_generator import HealthReportGenerator
 from .config import (
     CATALYST_CENTER_CONFIG,
     AI_CONFIG,
+    WEBEX_CONFIG,
+    EMAIL_CONFIG,
     API_ENDPOINTS,
     HEALTH_FILTERS,
     validate_config,
@@ -24,9 +28,13 @@ __all__ = [
     "CatalystCenterClient",
     "AIHealthAnalyzer",
     "WebexNotifier",
+    "EmailNotifier",
+    "NotificationChannel",
     "HealthReportGenerator",
     "CATALYST_CENTER_CONFIG",
     "AI_CONFIG",
+    "WEBEX_CONFIG",
+    "EMAIL_CONFIG",
     "API_ENDPOINTS",
     "HEALTH_FILTERS",
     "validate_config",

@@ -1,12 +1,14 @@
 """
-Webex Notifier Module
+Webex Teams Notification Module
 
-Sends health reports to Webex Teams.
+Sends health reports and summaries to Cisco Webex Teams spaces.
 """
 
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from datetime import datetime
+
+from .notification_channel import NotificationChannel
 
 try:
     from webexteamssdk import WebexTeamsAPI
@@ -15,75 +17,128 @@ except ImportError:
     WEBEX_AVAILABLE = False
 
 
-class WebexNotifier:
-    """Webex Teams notification service"""
-
+class WebexNotifier(NotificationChannel):
+    """Webex Teams notification channel implementation"""
+    
     def __init__(self, config: Dict[str, Any]):
         """
-        Initialize the Webex notifier
-
+        Initialize Webex Teams notifier.
+        
         Args:
-            config: AI configuration dictionary containing Webex settings
+            config: Configuration dictionary with webex_token and webex_space_id
         """
-        self.config = config
-        self.logger = self._setup_logging()
-
-    def _setup_logging(self) -> logging.Logger:
-        """Setup logging configuration"""
-        logger = logging.getLogger(f"{__name__}.WebexNotifier")
-        logger.setLevel(logging.INFO)
-        return logger
-
-    def send_health_report(self, summary: str, pdf_filepath: str) -> bool:
+        super().__init__(config)
+    
+    def is_configured(self) -> bool:
         """
-        Send health report summary and PDF to Webex space
-
-        Args:
-            summary: AI-generated summary text
-            pdf_filepath: Path to the PDF report file
-
+        Check if Webex is properly configured.
+        
         Returns:
-            True if successful, False otherwise
+            True if token and space ID are present
+        """
+        return bool(
+            self.config.get("webex_token") and 
+            self.config.get("webex_space_id") and
+            WEBEX_AVAILABLE
+        )
+    
+    def validate_config(self) -> tuple[bool, Optional[str]]:
+        """
+        Validate Webex configuration.
+        
+        Returns:
+            Tuple of (is_valid, error_message)
         """
         if not WEBEX_AVAILABLE:
-            self.logger.error("Webex SDK not available. Please install: pip install webexteamssdk")
-            return False
-
+            return False, "webexteamssdk is not installed. Install with: pip install webexteamssdk"
+        
         if not self.config.get("webex_token"):
-            self.logger.error("Webex bot token not provided in configuration")
-            return False
-
+            return False, "WEBEX_BOT_TOKEN is not configured"
+        
         if not self.config.get("webex_space_id"):
-            self.logger.error("Webex space ID not provided in configuration")
+            return False, "WEBEX_SPACE_ID is not configured"
+        
+        return True, None
+    
+    def send(self, message: str, pdf_filepath: Optional[str] = None) -> bool:
+        """
+        Send notification to Webex Teams space.
+        
+        Args:
+            message: Message content (supports markdown)
+            pdf_filepath: Optional PDF file to attach
+            
+        Returns:
+            True if sent successfully, False otherwise
+        """
+        if not self.is_configured():
+            is_valid, error = self.validate_config()
+            self.logger.error(f"Webex not properly configured: {error}")
             return False
-
+        
         try:
-            # Initialize Webex Teams API
             webex = WebexTeamsAPI(access_token=self.config["webex_token"])
-
-            # Format the message
-            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            message = f"""
-🏥 **Catalyst Center Daily Health Report** - {timestamp}
-
-{summary}
-
-📊 **Detailed Report:** See attached PDF for complete analysis.
-"""
-
-            # Send message with PDF attachment
-            self.logger.info("Sending health report to Webex space...")
-
-            # Send the message with file attachment
-            webex.messages.create(
-                roomId=self.config["webex_space_id"],
-                markdown=message,
-                files=[pdf_filepath]
-            )
-
-            self.logger.info("Health report sent to Webex successfully")
+            
+            # Format message with markdown
+            formatted_message = self._format_message(message)
+            
+            # Send message with optional attachment
+            if pdf_filepath:
+                webex.messages.create(
+                    roomId=self.config["webex_space_id"],
+                    markdown=formatted_message,
+                    files=[pdf_filepath]
+                )
+                self.logger.info(f"Webex notification sent successfully with PDF attachment")
+            else:
+                webex.messages.create(
+                    roomId=self.config["webex_space_id"],
+                    markdown=formatted_message
+                )
+                self.logger.info("Webex notification sent successfully")
+            
             return True
-
+            
         except Exception as e:
-            self.logger.error(f"Failed to send Webex message: {e}")
+            self.logger.error(f"Failed to send Webex notification: {e}")
             return False
+    
+    def _format_message(self, message: str) -> str:
+        """
+        Format message for Webex with markdown styling.
+        
+        Args:
+            message: Raw message text
+            
+        Returns:
+            Formatted markdown message
+        """
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        formatted = f"""
+**🏥 Cisco Catalyst Center Health Report**
+
+**Generated:** {timestamp}
+
+---
+
+{message}
+
+---
+*Automated health monitoring report*
+"""
+        return formatted.strip()
+    
+    # Backward compatibility method
+    def send_health_report(self, summary: str, pdf_filepath: str) -> bool:
+        """
+        Legacy method for backward compatibility.
+        
+        Args:
+            summary: Health summary text
+            pdf_filepath: Path to PDF report
+            
+        Returns:
+            True if sent successfully
+        """
+        return self.send(summary, pdf_filepath)
