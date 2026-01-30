@@ -12,13 +12,21 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+# Helper function for safe integer conversion
+def _safe_int(value: str, default: int) -> int:
+    """Safely convert string to int with fallback to default"""
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return default
+
 # Configuration
 CATALYST_CENTER_CONFIG = {
     "base_url": os.getenv("CATALYST_CENTER_URL", "https://your-catalyst-center.example.com"),
     "username": os.getenv("CATALYST_CENTER_USERNAME", "your_username"),
     "password": os.getenv("CATALYST_CENTER_PASSWORD", "your_password"),
     "verify_ssl": os.getenv("VERIFY_SSL", "false").lower() == "true",
-    "timeout": int(os.getenv("REQUEST_TIMEOUT", "30"))
+    "timeout": _safe_int(os.getenv("REQUEST_TIMEOUT", "30"), 30)
 }
 
 # AI and Webex Configuration

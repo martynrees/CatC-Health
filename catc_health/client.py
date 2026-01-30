@@ -70,6 +70,21 @@ class CatalystCenterClient:
         # Setup logging
         self.logger = self._setup_logging()
 
+    def __enter__(self):
+        """Context manager entry"""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit - cleanup resources"""
+        self.close()
+        return False
+
+    def close(self):
+        """Close the HTTP session and cleanup resources"""
+        if self.session:
+            self.session.close()
+            self.logger.debug("HTTP session closed")
+
     def _setup_logging(self) -> logging.Logger:
         """Setup logging configuration"""
         logger = logging.getLogger(__name__)
@@ -129,7 +144,8 @@ class CatalystCenterClient:
                 return False
 
         except requests.exceptions.RequestException as e:
-            self.logger.error(f"Authentication failed: {e}")
+            self.logger.error("Authentication failed. Check credentials and network connectivity.")
+            self.logger.debug(f"Authentication error details: {type(e).__name__}")
             return False
 
     @retry(
@@ -373,6 +389,11 @@ class CatalystCenterClient:
 
     def get_site_by_id(self, site_id: str) -> Dict:
         """Get specific site information by ID"""
+        # Validate site_id to prevent path traversal
+        if not site_id or not site_id.replace('-', '').replace('_', '').isalnum():
+            self.logger.error(f"Invalid site_id format: {site_id}")
+            return {}
+        
         url = f"{self.base_url}{API_ENDPOINTS['sites']}/{site_id}"
 
         try:

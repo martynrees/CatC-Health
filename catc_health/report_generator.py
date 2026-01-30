@@ -1,4 +1,24 @@
-"""\nHealth Report Generator Module\n\nGenerates PDF health reports.\n"""\n\nimport os\nimport logging\nfrom typing import List, Dict, Optional, Any\nfrom datetime import datetime\n\nfrom reportlab.lib import colors\nfrom reportlab.lib.pagesizes import letter, A4\nfrom reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle\nfrom reportlab.lib.units import inch\nfrom reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak\nfrom reportlab.lib.enums import TA_CENTER, TA_LEFT\n\nfrom .utils import categorize_health\n\nclass HealthReportGenerator:
+"""
+Health Report Generator Module
+
+Generates PDF health reports.
+"""
+
+import os
+import logging
+from typing import List, Dict, Optional, Any
+from datetime import datetime
+
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
+
+from .utils import categorize_health
+
+class HealthReportGenerator:
     """Generates health reports in PDF format"""
 
     def __init__(self, output_dir: str = "reports"):
@@ -68,7 +88,7 @@
         summary_data = [
             ['Summary', 'Count'],
             ['Total Devices', str(total_devices)],
-            ['Poor Health (≤3)', str(poor_devices)],
+            ['Poor Health (â¤3)', str(poor_devices)],
             ['Fair Health (4-7)', str(fair_devices)],
             ['Good Health (>7)', str(good_devices)]
         ]
@@ -334,7 +354,7 @@
         summary_data = [
             ['Fabric Health Summary', 'Count'],
             ['Total Fabric Sites', str(total_sites)],
-            ['Healthy Sites (≥80%)', str(healthy_sites)],
+            ['Healthy Sites (â¥80%)', str(healthy_sites)],
             ['Warning Sites (50-79%)', str(warning_sites)],
             ['Critical Sites (<50%)', str(critical_sites)]
         ]
@@ -1163,7 +1183,7 @@
         # Device Health Breakdown
         device_health_data = [
             ['Health Category', 'Count', 'Percentage'],
-            ['Poor Health (≤3)', str(poor_devices), f"{(poor_devices/max(total_devices,1)*100):.1f}%"],
+            ['Poor Health (â¤3)', str(poor_devices), f"{(poor_devices/max(total_devices,1)*100):.1f}%"],
             ['Fair Health (4-7)', str(fair_devices), f"{(fair_devices/max(total_devices,1)*100):.1f}%"],
             ['Good Health (>7)', str(good_devices), f"{(good_devices/max(total_devices,1)*100):.1f}%"]
         ]
@@ -1212,7 +1232,7 @@
             story.append(issues_table)
             story.append(Spacer(1, 20))
         else:
-            story.append(Paragraph("✅ No Critical or High Priority Issues Found", styles['Heading3']))
+            story.append(Paragraph("â No Critical or High Priority Issues Found", styles['Heading3']))
             story.append(Spacer(1, 20))
 
         # 4. Client Health Summary (if clients exist)
@@ -1626,7 +1646,7 @@
                     if last_update != 'N/A' and isinstance(last_update, (int, float)):
                         try:
                             last_update = datetime.fromtimestamp(last_update / 1000).strftime('%Y-%m-%d %H:%M')
-                        except:
+                        except (ValueError, OSError, OverflowError):
                             last_update = 'N/A'
 
                     row = [
@@ -1741,7 +1761,7 @@
                     if start_time != 'N/A' and isinstance(start_time, (int, float)):
                         try:
                             start_time_str = datetime.fromtimestamp(start_time / 1000).strftime('%Y-%m-%d %H:%M')
-                        except:
+                        except (ValueError, OSError, OverflowError):
                             start_time_str = 'N/A'
 
                     backup_size = backup.get('backup_size', 'N/A')

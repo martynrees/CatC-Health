@@ -183,18 +183,8 @@ def main():
             # Use Data API to get individual client records with detailed information
             logging.info("Using Data API for detailed client information...")
             all_clients = client.get_clients()
-            # Filter for poor and fair health clients
-            def categorize_client_health(health_score):
-                if not isinstance(health_score, (int, float)):
-                    return 'UNKNOWN'
-                if health_score < 4:
-                    return 'POOR'
-                elif health_score < 7:
-                    return 'FAIR'
-                else:
-                    return 'GOOD'
-
-            clients = [c for c in all_clients if categorize_client_health(c.get('health', {}).get('overallScore', 0)) in ['POOR', 'FAIR']]
+            # Filter for poor and fair health clients using shared utility function
+            clients = [c for c in all_clients if categorize_health(c.get('health', {}).get('overallScore', 0)) in ['POOR', 'FAIR']]
             logging.info(f"Retrieved {len(clients)} clients with Poor or Fair health from Data API")
         except Exception as e:
             logging.warning(f"Failed to collect client health data: {e}")
@@ -490,3 +480,4 @@ def main():
 
 
 if __name__ == "__main__":
+    main()

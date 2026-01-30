@@ -5,6 +5,7 @@ AI-powered health analysis using OpenAI and LangChain.
 """
 
 import logging
+import re
 from typing import Dict, Any
 from datetime import datetime
 
@@ -14,6 +15,33 @@ try:
     LANGCHAIN_AVAILABLE = True
 except ImportError:
     LANGCHAIN_AVAILABLE = False
+
+
+def sanitize_for_ai(text: str, max_length: int = 5000) -> str:
+    """
+    Sanitize text data before sending to AI to prevent prompt injection.
+    
+    Args:
+        text: The text to sanitize
+        max_length: Maximum allowed length
+        
+    Returns:
+        Sanitized text safe for AI prompts
+    """
+    if not isinstance(text, str):
+        text = str(text)
+    
+    # Remove control characters and normalize whitespace
+    text = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', text)
+    
+    # Normalize multiple whitespace to single space
+    text = re.sub(r'\s+', ' ', text)
+    
+    # Truncate to max length
+    if len(text) > max_length:
+        text = text[:max_length] + "... [truncated]"
+    
+    return text.strip()
 
 
 class AIHealthAnalyzer:
@@ -63,6 +91,9 @@ class AIHealthAnalyzer:
 
             # Prepare the health data summary for analysis
             data_summary = self._prepare_data_summary(health_data)
+            
+            # Sanitize the data summary to prevent prompt injection
+            data_summary = sanitize_for_ai(data_summary, max_length=8000)
 
             # Create messages
             system_message = SystemMessage(content=self.config["system_prompt"])
