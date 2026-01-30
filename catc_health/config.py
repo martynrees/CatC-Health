@@ -75,6 +75,12 @@ EMAIL_CONFIG = {
     "email_subject": os.getenv("EMAIL_SUBJECT", "Catalyst Center Health Report - {date}")
 }
 
+# MS Teams Notification Configuration
+TEAMS_CONFIG = {
+    "enabled": os.getenv("ENABLE_TEAMS_NOTIFICATIONS", "false").lower() == "true",
+    "teams_webhook_url": os.getenv("TEAMS_WEBHOOK_URL")
+}
+
 # API Endpoints
 API_ENDPOINTS = {
     "auth": "/dna/system/api/v1/auth/token",

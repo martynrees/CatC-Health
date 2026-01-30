@@ -8,13 +8,16 @@ from .client import CatalystCenterClient
 from .ai_analyzer import AIHealthAnalyzer
 from .webex_notifier import WebexNotifier
 from .email_notifier import EmailNotifier
+from .teams_notifier import TeamsNotifier
 from .notification_channel import NotificationChannel
+from .notification_manager import NotificationManager
 from .report_generator import HealthReportGenerator
 from .config import (
     CATALYST_CENTER_CONFIG,
     AI_CONFIG,
     WEBEX_CONFIG,
     EMAIL_CONFIG,
+    TEAMS_CONFIG,
     API_ENDPOINTS,
     HEALTH_FILTERS,
     validate_config,
@@ -29,12 +32,15 @@ __all__ = [
     "AIHealthAnalyzer",
     "WebexNotifier",
     "EmailNotifier",
+    "TeamsNotifier",
     "NotificationChannel",
+    "NotificationManager",
     "HealthReportGenerator",
     "CATALYST_CENTER_CONFIG",
     "AI_CONFIG",
     "WEBEX_CONFIG",
     "EMAIL_CONFIG",
+    "TEAMS_CONFIG",
     "API_ENDPOINTS",
     "HEALTH_FILTERS",
     "validate_config",
