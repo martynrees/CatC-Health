@@ -53,7 +53,7 @@ The application uses a modular package structure for improved maintainability an
 - Access to Cisco Catalyst Center with API permissions
 - Network connectivity to your Catalyst Center instance
 - **Optional**: AI API key from one of:
-  - OpenAI (GPT-4o-mini) - Default, fastest setup
+  - OpenAI (GPT-5-nano) - Default, fast, affordable
   - Google (Gemini 1.5 Flash) - Most cost-effective
   - Anthropic (Claude 3 Haiku) - High-quality alternative
 - **Optional**: SMTP server access for email notifications
@@ -229,11 +229,11 @@ TEAMS_WEBHOOK_URL=https://your-org.webhook.office.com/webhookb2/...
 
 The application supports three AI providers for health analysis. Choose the one that best fits your needs:
 
-#### OpenAI (Default) - Fastest Setup
+#### OpenAI (Default) - Fast & Affordable
 
-**Model**: GPT-4o-mini  
-**Cost**: $0.15 input / $0.60 output per 1M tokens  
-**Best for**: Quick setup, reliable performance
+**Model**: GPT-5-nano  
+**Cost**: $0.05 input / $0.40 output per 1M tokens  
+**Best for**: Best balance of speed, cost, and performance
 
 1. Sign up at [platform.openai.com](https://platform.openai.com)
 2. Create an API key at [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
@@ -246,11 +246,13 @@ OPENAI_API_KEY=sk-proj-...your-key-here
 
 **Dependencies**: `pip install langchain-openai`
 
+**Why GPT-5-nano?** Released in August 2025, it outperforms GPT-4o-mini on benchmarks while being 43% cheaper. It has a 400K context window (3x larger) and faster response times, making it ideal for network health analysis.
+
 #### Google Gemini - Most Cost-Effective
 
 **Model**: Gemini 1.5 Flash  
-**Cost**: $0.075 input / $0.30 output per 1M tokens (50% cheaper than OpenAI!)  
-**Best for**: Cost optimization, high-volume usage
+**Cost**: $0.075 input / $0.30 output per 1M tokens (cheapest overall!)  
+**Best for**: Maximum cost optimization, high-volume usage
 
 1. Sign up at [ai.google.dev](https://ai.google.dev)
 2. Get API key at [makersuite.google.com/app/apikey](https://makersuite.google.com/app/apikey)
@@ -284,13 +286,18 @@ ANTHROPIC_API_KEY=sk-ant-...your-key-here
 
 For a typical health report analysis (500 input tokens, 300 output tokens):
 
-| Provider   | Cost per Report | Monthly Cost (30 reports) |
-|------------|----------------|---------------------------|
-| Google     | $0.00013       | $0.004 (~half a cent)     |
-| OpenAI     | $0.00026       | $0.008 (~1 cent)          |
-| Anthropic  | $0.00050       | $0.015 (~1.5 cents)       |
+| Provider   | Cost per Report | Monthly Cost (30 reports) | Speed    |
+|------------|-----------------|---------------------------|----------|
+| Google     | $0.00013        | $0.004 (~half a cent)     | Fast     |
+| OpenAI     | $0.00015        | $0.005 (~half a cent)     | Fastest  |
+| Anthropic  | $0.00050        | $0.015 (~1.5 cents)       | Fast     |
 
-All providers are extremely cost-effective for typical usage.
+**All providers are extremely cost-effective for typical usage.**
+
+**Model Performance:**
+- **GPT-5-nano** (OpenAI): Excellent performance, 400K context window, faster than GPT-4o-mini
+- **Gemini 1.5 Flash** (Google): Best price-to-performance ratio
+- **Claude 3 Haiku** (Anthropic): Premium quality, advanced reasoning
 
 
 

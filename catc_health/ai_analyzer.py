@@ -69,7 +69,7 @@ class AIHealthAnalyzer:
     
     # Model mappings for each provider (cost-effective options)
     PROVIDER_MODELS = {
-        "openai": "gpt-4o-mini",
+        "openai": "gpt-5-nano",  # Updated to GPT-5-nano (43% cheaper, faster, better performance)
         "google": "gemini-1.5-flash",
         "anthropic": "claude-3-haiku-20240307"
     }
@@ -116,7 +116,7 @@ class AIHealthAnalyzer:
             if not api_key:
                 raise ValueError("OPENAI_API_KEY not configured in .env file")
             
-            self.logger.info("Using OpenAI provider (gpt-4o-mini)")
+            self.logger.info("Using OpenAI provider (gpt-5-nano)")
             return ChatOpenAI(
                 model=self.PROVIDER_MODELS["openai"],
                 api_key=api_key,
