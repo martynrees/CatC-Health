@@ -1,9 +1,19 @@
 # Optional dependencies for AI features
 # Install with: pip install -r requirements-ai.txt
 
-# AI-powered health analysis
+# Core AI framework
 langchain>=0.1.0,<0.2.0
+
+# AI Provider Options (install one or more):
+
+# OpenAI (GPT-4o-mini) - Default provider
 langchain-openai>=0.1.0,<0.2.0
+
+# Google Gemini (Gemini 1.5 Flash) - Cost-effective alternative
+langchain-google-genai>=0.1.0,<0.2.0
+
+# Anthropic Claude (Claude 3 Haiku) - High-quality alternative
+langchain-anthropic>=0.1.0,<0.2.0
 
 # Webex Teams integration
 webexteamssdk>=1.7.0

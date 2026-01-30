@@ -52,7 +52,10 @@ The application uses a modular package structure for improved maintainability an
 - Python 3.8 or higher
 - Access to Cisco Catalyst Center with API permissions
 - Network connectivity to your Catalyst Center instance
-- **Optional**: OpenAI API key for AI-powered analysis
+- **Optional**: AI API key from one of:
+  - OpenAI (GPT-4o-mini) - Default, fastest setup
+  - Google (Gemini 1.5 Flash) - Most cost-effective
+  - Anthropic (Claude 3 Haiku) - High-quality alternative
 - **Optional**: SMTP server access for email notifications
 - **Optional**: Webex Teams bot token and space ID for Webex notifications
 - **Optional**: Microsoft Teams incoming webhook URL for Teams notifications
@@ -110,7 +113,11 @@ REQUEST_TIMEOUT=30
 DEFAULT_LIMIT=500
 
 # AI Integration (for --ai-summary feature)
-OPENAI_API_KEY=sk-your-openai-api-key-here
+# Choose ONE AI provider: openai, google, or anthropic
+AI_PROVIDER=openai                           # Default: openai
+OPENAI_API_KEY=sk-your-openai-api-key-here  # For OpenAI
+GOOGLE_API_KEY=                              # For Google Gemini
+ANTHROPIC_API_KEY=                           # For Anthropic Claude
 
 # =====================================================
 # NOTIFICATION CHANNELS (All Optional)
@@ -217,6 +224,73 @@ TEAMS_WEBHOOK_URL=https://your-org.webhook.office.com/webhookb2/...
 ```
 
 **Note:** Teams webhooks cannot receive file attachments, so the PDF report location is mentioned in the message.
+
+### AI Provider Setup
+
+The application supports three AI providers for health analysis. Choose the one that best fits your needs:
+
+#### OpenAI (Default) - Fastest Setup
+
+**Model**: GPT-4o-mini  
+**Cost**: $0.15 input / $0.60 output per 1M tokens  
+**Best for**: Quick setup, reliable performance
+
+1. Sign up at [platform.openai.com](https://platform.openai.com)
+2. Create an API key at [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
+3. Configure in `.env`:
+
+```env
+AI_PROVIDER=openai
+OPENAI_API_KEY=sk-proj-...your-key-here
+```
+
+**Dependencies**: `pip install langchain-openai`
+
+#### Google Gemini - Most Cost-Effective
+
+**Model**: Gemini 1.5 Flash  
+**Cost**: $0.075 input / $0.30 output per 1M tokens (50% cheaper than OpenAI!)  
+**Best for**: Cost optimization, high-volume usage
+
+1. Sign up at [ai.google.dev](https://ai.google.dev)
+2. Get API key at [makersuite.google.com/app/apikey](https://makersuite.google.com/app/apikey)
+3. Configure in `.env`:
+
+```env
+AI_PROVIDER=google
+GOOGLE_API_KEY=AIza...your-key-here
+```
+
+**Dependencies**: `pip install langchain-google-genai`
+
+#### Anthropic Claude - High Quality
+
+**Model**: Claude 3 Haiku  
+**Cost**: $0.25 input / $1.25 output per 1M tokens  
+**Best for**: Advanced reasoning, detailed analysis
+
+1. Sign up at [console.anthropic.com](https://console.anthropic.com)
+2. Create API key in console
+3. Configure in `.env`:
+
+```env
+AI_PROVIDER=anthropic
+ANTHROPIC_API_KEY=sk-ant-...your-key-here
+```
+
+**Dependencies**: `pip install langchain-anthropic`
+
+#### Cost Comparison
+
+For a typical health report analysis (500 input tokens, 300 output tokens):
+
+| Provider   | Cost per Report | Monthly Cost (30 reports) |
+|------------|----------------|---------------------------|
+| Google     | $0.00013       | $0.004 (~half a cent)     |
+| OpenAI     | $0.00026       | $0.008 (~1 cent)          |
+| Anthropic  | $0.00050       | $0.015 (~1.5 cents)       |
+
+All providers are extremely cost-effective for typical usage.
 
 
 
@@ -547,7 +621,13 @@ All dependencies are managed in `requirements.txt`:
 
 ### AI and Notification Dependencies (Optional)
 - `langchain>=0.1.0` - AI framework for structured LLM interactions
-- `langchain-openai>=0.1.0` - OpenAI GPT-4o-mini integration
+
+**AI Provider Options (install one or more):**
+- `langchain-openai>=0.1.0` - OpenAI GPT-4o-mini integration (default)
+- `langchain-google-genai>=0.1.0` - Google Gemini 1.5 Flash integration
+- `langchain-anthropic>=0.1.0` - Anthropic Claude 3 Haiku integration
+
+**Notification Integrations:**
 - `webexteamssdk>=1.6.0` - Webex Teams API integration
 
 **Note**: Email and Teams notifications use built-in Python libraries and `requests` (already a core dependency), so no additional packages are required for those channels.
@@ -557,7 +637,7 @@ All dependencies are managed in `requirements.txt`:
 - `pytest-cov>=4.1.0` - Code coverage reporting
 
 **Graceful Degradation**: The application detects missing optional dependencies at runtime:
-- Without `langchain`/`langchain-openai`: The `--ai-summary` flag will display an error message but the PDF report will still generate
+- Without `langchain` or AI provider libraries: The `--ai-summary` flag will display an error message but the PDF report will still generate
 - Without `webexteamssdk`: Webex notifications will be skipped with a warning
 - Email and Teams notifications work without additional dependencies
 - The application will never crash due to missing optional dependencies
@@ -595,10 +675,18 @@ All dependencies are managed in `requirements.txt`:
    - Use the installation script: `./install_dependencies.sh`
 
 6. **AI Features Not Working**
-   - Check if `OPENAI_API_KEY` is set in `.env` file
-   - Verify OpenAI API key is valid and has sufficient quota
-   - Ensure AI dependencies are installed (langchain, langchain-openai)
+   - Check if `AI_PROVIDER` is set in `.env` file (openai, google, or anthropic)
+   - Verify the corresponding API key is configured:
+     - OpenAI: `OPENAI_API_KEY`
+     - Google: `GOOGLE_API_KEY`
+     - Anthropic: `ANTHROPIC_API_KEY`
+   - Ensure correct provider library is installed:
+     - OpenAI: `pip install langchain-openai`
+     - Google: `pip install langchain-google-genai`
+     - Anthropic: `pip install langchain-anthropic`
+   - Verify API key is valid and has sufficient quota
    - Review console output for specific AI error messages
+   - Try switching to a different provider if one is not working
 
 7. **Email Notifications Not Sent**
    - Verify SMTP settings in `.env` file (server, port, credentials)

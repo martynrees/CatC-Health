@@ -1,20 +1,40 @@
 """
 AI Health Analyzer Module
 
-AI-powered health analysis using OpenAI and LangChain.
+AI-powered health analysis using multiple AI providers (OpenAI, Google, Anthropic).
 """
 
 import logging
 import re
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from datetime import datetime
+
+# Try importing AI provider libraries
+OPENAI_AVAILABLE = False
+GOOGLE_AVAILABLE = False
+ANTHROPIC_AVAILABLE = False
 
 try:
     from langchain_openai import ChatOpenAI
     from langchain.schema import HumanMessage, SystemMessage
-    LANGCHAIN_AVAILABLE = True
+    OPENAI_AVAILABLE = True
 except ImportError:
-    LANGCHAIN_AVAILABLE = False
+    pass
+
+try:
+    from langchain_google_genai import ChatGoogleGenerativeAI
+    GOOGLE_AVAILABLE = True
+except ImportError:
+    pass
+
+try:
+    from langchain_anthropic import ChatAnthropic
+    ANTHROPIC_AVAILABLE = True
+except ImportError:
+    pass
+
+# At least one provider must be available
+LANGCHAIN_AVAILABLE = OPENAI_AVAILABLE or GOOGLE_AVAILABLE or ANTHROPIC_AVAILABLE
 
 
 def sanitize_for_ai(text: str, max_length: int = 5000) -> str:
@@ -45,7 +65,14 @@ def sanitize_for_ai(text: str, max_length: int = 5000) -> str:
 
 
 class AIHealthAnalyzer:
-    """AI-powered health analysis using OpenAI and LangChain"""
+    """AI-powered health analysis using multiple AI providers"""
+    
+    # Model mappings for each provider (cost-effective options)
+    PROVIDER_MODELS = {
+        "openai": "gpt-4o-mini",
+        "google": "gemini-1.5-flash",
+        "anthropic": "claude-3-haiku-20240307"
+    }
 
     def __init__(self, config: Dict[str, Any]):
         """
@@ -56,16 +83,87 @@ class AIHealthAnalyzer:
         """
         self.config = config
         self.logger = self._setup_logging()
+        self.provider = config.get("provider", "openai").lower()
 
     def _setup_logging(self) -> logging.Logger:
         """Setup logging configuration"""
         logger = logging.getLogger(f"{__name__}.AIHealthAnalyzer")
         logger.setLevel(logging.INFO)
         return logger
+    
+    def _create_ai_model(self):
+        """
+        Create AI model based on configured provider
+        
+        Returns:
+            LangChain chat model instance
+            
+        Raises:
+            ValueError: If provider is not supported or dependencies are missing
+        """
+        provider = self.provider
+        
+        # Validate provider
+        if provider not in self.PROVIDER_MODELS:
+            raise ValueError(f"Unsupported AI provider: {provider}. Must be one of: openai, google, anthropic")
+        
+        # OpenAI provider
+        if provider == "openai":
+            if not OPENAI_AVAILABLE:
+                raise ImportError("OpenAI provider requires: pip install langchain-openai")
+            
+            api_key = self.config.get("openai_api_key")
+            if not api_key:
+                raise ValueError("OPENAI_API_KEY not configured in .env file")
+            
+            self.logger.info("Using OpenAI provider (gpt-4o-mini)")
+            return ChatOpenAI(
+                model=self.PROVIDER_MODELS["openai"],
+                api_key=api_key,
+                temperature=0.1,
+                timeout=60,
+                max_retries=2
+            )
+        
+        # Google Gemini provider
+        elif provider == "google":
+            if not GOOGLE_AVAILABLE:
+                raise ImportError("Google provider requires: pip install langchain-google-genai")
+            
+            api_key = self.config.get("google_api_key")
+            if not api_key:
+                raise ValueError("GOOGLE_API_KEY not configured in .env file")
+            
+            self.logger.info("Using Google Gemini provider (gemini-1.5-flash)")
+            return ChatGoogleGenerativeAI(
+                model=self.PROVIDER_MODELS["google"],
+                google_api_key=api_key,
+                temperature=0.1,
+                timeout=60,
+                max_retries=2
+            )
+        
+        # Anthropic Claude provider
+        elif provider == "anthropic":
+            if not ANTHROPIC_AVAILABLE:
+                raise ImportError("Anthropic provider requires: pip install langchain-anthropic")
+            
+            api_key = self.config.get("anthropic_api_key")
+            if not api_key:
+                raise ValueError("ANTHROPIC_API_KEY not configured in .env file")
+            
+            self.logger.info("Using Anthropic Claude provider (claude-3-haiku)")
+            return ChatAnthropic(
+                model=self.PROVIDER_MODELS["anthropic"],
+                anthropic_api_key=api_key,
+                temperature=0.1,
+                timeout=60,
+                max_retries=2
+            )
 
     def analyze_health_data(self, health_data: Dict[str, Any]) -> str:
         """
-        Analyze health data using OpenAI and return a summary
+        Analyze health data using configured AI provider and return a summary
 
         Args:
             health_data: Dictionary containing all health data from the monitoring
@@ -74,21 +172,12 @@ class AIHealthAnalyzer:
             Summary string or error message
         """
         if not LANGCHAIN_AVAILABLE:
-            return "❌ AI Summary Error: LangChain dependencies not installed. Please install: pip install langchain langchain-openai"
-
-        if not self.config.get("openai_api_key"):
-            return "❌ AI Summary Error: The summary was not able to be processed as the API key was not provided."
+            return "❌ AI Summary Error: LangChain dependencies not installed. Please install: pip install langchain langchain-openai (or langchain-google-genai, langchain-anthropic)"
 
         try:
-            # Initialize OpenAI client with timeout
-            llm = ChatOpenAI(
-                model=self.config["model_name"],
-                api_key=self.config["openai_api_key"],
-                temperature=0.1,
-                timeout=60,  # 60 second timeout for API calls
-                max_retries=2  # Retry failed requests twice
-            )
-
+            # Create AI model using factory function
+            llm = self._create_ai_model()
+            
             # Prepare the health data summary for analysis
             data_summary = self._prepare_data_summary(health_data)
             
@@ -112,24 +201,35 @@ Keep the summary concise but comprehensive for quick decision making.
 """)
 
             # Get AI response
-            self.logger.info("Sending health data to OpenAI for analysis...")
+            provider_name = self.provider.upper()
+            self.logger.info(f"Sending health data to {provider_name} for analysis...")
             response = llm.invoke([system_message, human_message])
 
             summary = response.content.strip()
-            self.logger.info("AI analysis completed successfully")
+            self.logger.info(f"AI analysis completed successfully using {provider_name}")
             return summary
 
+        except (ValueError, ImportError) as e:
+            # Configuration or dependency errors
+            error_msg = str(e)
+            self.logger.error(f"AI configuration error: {error_msg}")
+            return f"❌ AI Summary Error: {error_msg}"
+        
         except Exception as e:
             error_msg = str(e).lower()
+            provider_name = self.provider.upper()
+            
             if "quota" in error_msg or "rate limit" in error_msg:
-                return "❌ AI Summary Error: The summary was not able to be processed as the API quota was exceeded."
+                return f"❌ AI Summary Error: {provider_name} API quota exceeded or rate limit reached."
             elif "api" in error_msg and ("unavailable" in error_msg or "connection" in error_msg):
-                return "❌ AI Summary Error: The summary was not able to be processed as the API was not available."
+                return f"❌ AI Summary Error: {provider_name} API is unavailable or connection failed."
             elif "timeout" in error_msg or "timed out" in error_msg:
-                return "❌ AI Summary Error: The summary request timed out. The OpenAI API may be slow or unresponsive."
+                return f"❌ AI Summary Error: {provider_name} API request timed out. The API may be slow or unresponsive."
+            elif "authentication" in error_msg or "api key" in error_msg or "api_key" in error_msg:
+                return f"❌ AI Summary Error: {provider_name} API authentication failed. Check your API key."
             else:
                 self.logger.error(f"AI analysis failed: {e}")
-                return f"❌ AI Summary Error: Failed to process health data analysis. Error: {str(e)}"
+                return f"❌ AI Summary Error: Failed to process health data analysis with {provider_name}. Error: {str(e)}"
 
     def _prepare_data_summary(self, health_data: Dict[str, Any]) -> str:
         """

@@ -29,10 +29,14 @@ CATALYST_CENTER_CONFIG = {
     "timeout": _safe_int(os.getenv("REQUEST_TIMEOUT", "30"), 30)
 }
 
-# AI and Notification Configuration
+# AI Configuration
+# Supports multiple AI providers: openai, google, anthropic
 AI_CONFIG = {
+    "provider": os.getenv("AI_PROVIDER", "openai").lower(),  # openai (default), google, or anthropic
     "openai_api_key": os.getenv("OPENAI_API_KEY"),
-    "model_name": "gpt-4o-mini",
+    "google_api_key": os.getenv("GOOGLE_API_KEY"),
+    "anthropic_api_key": os.getenv("ANTHROPIC_API_KEY"),
+    "model_name": "gpt-4o-mini",  # Default for OpenAI, overridden per provider
     "system_prompt": """You are a network operations manager reviewing daily infrastructure health. Create a summary that serves both technical teams and leadership:
 
 **🚨 URGENT ISSUES (Next 4 Hours):**
