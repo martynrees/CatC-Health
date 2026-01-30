@@ -7,14 +7,14 @@ A modular Python application that connects to Cisco Catalyst Center and generate
 The application uses a modular package structure for improved maintainability and testability:
 
 - **`catc_health/`** - Core package with specialized modules:
-  - `client.py` - API client with automatic retry logic
+  - `client.py` - API client with automatic retry logic and context manager support
   - `config.py` - Configuration management and validation
   - `ai_analyzer.py` - OpenAI GPT-4o-mini integration
   - `webex_notifier.py` - Webex Teams messaging
   - `report_generator.py` - PDF report generation
   - `api_adapter.py` - API field normalization
   - `utils.py` - Shared utilities
-- **`catalyst_health_monitor.py`** - Main entry point (432 lines)
+- **`catalyst_health_monitor.py`** - Main entry point (483 lines)
 - **`tests/`** - Unit test suite with pytest
 
 ## Features
@@ -55,8 +55,11 @@ The application uses a modular package structure for improved maintainability an
 
 2. **Install dependencies:**
    ```bash
-   # Install all dependencies (recommended)
+   # Install all dependencies including AI features (recommended)
    pip install -r requirements.txt
+
+   # Alternative: Install only AI-specific dependencies
+   pip install -r requirements-ai.txt
 
    # Alternative: Use the installation script
    ./install_dependencies.sh
@@ -299,13 +302,17 @@ WantedBy=timers.target
 - `/api/system/v1/maglev/services/summary` - Maglev services status
 - `/api/system/v1/maglev/backup` - System backup information
 - `/api/system/v1/maglev/backup/history` - Backup history
-- `/api/system/v1/systemupdater/common/availabe_update_info` - System updates
+- `/api/system/v1/systemupdater/common/available_update_info` - System updates
+- `/dna/intent/api/v1/eox-status/device` - End of Life (EoX) status
+- `/dna/intent/api/v1/compliance/detail` - Device compliance details
+- `/dna/intent/api/v1/image/importation/golden` - Golden image information
+- `/dna/intent/api/v1/image/importation/device-family-identifiers` - Device family identifiers
 
 ## Health Score Interpretation
 
-- **POOR (0-3)**: Devices requiring immediate attention
-- **FAIR (4-7)**: Devices with moderate issues that should be monitored
-- **GOOD (8-10)**: Devices operating normally
+- **POOR (≤3)**: Devices requiring immediate attention
+- **FAIR (4-6)**: Devices with moderate issues that should be monitored
+- **GOOD (≥7)**: Devices operating normally
 
 ## AI Features
 
@@ -353,7 +360,10 @@ All dependencies are managed in `requirements.txt`:
 - `pytest>=7.4.0` - Unit testing framework
 - `pytest-cov>=4.1.0` - Code coverage reporting
 
-**Note**: The application gracefully handles missing optional dependencies and will continue to function without AI/Webex features if these packages are not installed.
+**Graceful Degradation**: The application detects missing optional dependencies at runtime:
+- Without `langchain`/`langchain-openai`: The `--ai-summary` flag will display an error message but the PDF report will still generate
+- Without `webexteamssdk`: Webex messaging will be skipped with a warning, but AI analysis and PDF generation continue normally
+- The application will never crash due to missing optional dependencies
 
 ## Troubleshooting
 
@@ -426,6 +436,9 @@ grep ERROR catalyst_health_monitor.log
 
 - **Never commit `.env` file**: The `.env` file is automatically excluded from git tracking
 - **Use `.env.example`**: Provides a template without sensitive data
+- **Context Manager Support**: The API client implements Python context managers (`with` statement) for automatic resource cleanup and proper session handling
+- **Secure Error Logging**: Authentication errors are logged generically to prevent credential exposure in production logs
+- **Input Validation**: API parameters are validated to prevent path traversal and injection attacks
 - Store credentials securely and rotate them regularly
 - Consider using API tokens instead of passwords where possible
 - Use HTTPS and verify SSL certificates in production environments
@@ -483,12 +496,12 @@ For issues and questions:
 
 ```
 CatC-Health/
-├── catalyst_health_monitor.py    # Main entry point (432 lines)
+├── catalyst_health_monitor.py    # Main entry point (483 lines)
 ├── catc_health/                   # Core package
 │   ├── __init__.py               # Package exports
-│   ├── client.py                 # API client with retry logic
+│   ├── client.py                 # API client with retry logic and context managers
 │   ├── config.py                 # Configuration and validation
-│   ├── ai_analyzer.py            # OpenAI integration
+│   ├── ai_analyzer.py            # OpenAI integration with sanitization
 │   ├── webex_notifier.py         # Webex Teams messaging
 │   ├── report_generator.py       # PDF report generation
 │   ├── api_adapter.py            # API field normalization
@@ -496,10 +509,11 @@ CatC-Health/
 ├── tests/                         # Unit tests
 │   ├── conftest.py               # Pytest fixtures
 │   ├── test_health_monitor.py    # Test suite
-│   └── fixtures/                 # Test data
+│   └── fixtures/                 # Test data (mock API responses)
 ├── reports/                       # Generated PDF reports
 ├── .env.example                   # Configuration template
-├── requirements.txt               # Python dependencies
+├── requirements.txt               # Python dependencies (all features)
+├── requirements-ai.txt            # AI-specific dependencies only
 ├── run_health_monitor.sh          # Enhanced execution script
 └── install_dependencies.sh        # Dependency installation script
 ```
