@@ -1,6 +1,6 @@
 # Cisco Catalyst Center Health Monitor with AI Analysis
 
-A modular Python application that connects to Cisco Catalyst Center and generates daily health reports for network devices and assurance issues in **PDF format**, with optional **AI-powered analysis** and **Webex Teams integration**.
+A modular Python application that connects to Cisco Catalyst Center and generates daily health reports for network devices and assurance issues in **PDF format**, with optional **AI-powered analysis** and **multi-channel notifications** (Email, Webex Teams, MS Teams).
 
 ## Architecture
 
@@ -10,7 +10,11 @@ The application uses a modular package structure for improved maintainability an
   - `client.py` - API client with automatic retry logic and context manager support
   - `config.py` - Configuration management and validation
   - `ai_analyzer.py` - OpenAI GPT-4o-mini integration
+  - `notification_channel.py` - Abstract base class for notifications
   - `webex_notifier.py` - Webex Teams messaging
+  - `email_notifier.py` - SMTP email notifications
+  - `teams_notifier.py` - Microsoft Teams webhook integration
+  - `notification_manager.py` - Multi-channel notification orchestration
   - `report_generator.py` - PDF report generation
   - `api_adapter.py` - API field normalization
   - `utils.py` - Shared utilities
@@ -28,7 +32,13 @@ The application uses a modular package structure for improved maintainability an
 - 📝 **Comprehensive Logging**: Detailed logging for monitoring and troubleshooting
 - 🔧 **Configurable**: Environment-based configuration with validation
 - 🤖 **AI-Powered Analysis**: Optional OpenAI GPT-4o-mini integration for intelligent health summaries
-- 📧 **Webex Teams Integration**: Automated messaging and report distribution
+- 📧 **Multi-Channel Notifications**: Flexible notification delivery via Email, Webex Teams, and MS Teams
+  - **Email (SMTP)**: Full-featured HTML emails with PDF attachments, TLS/SSL support
+  - **Webex Teams**: Bot-based messaging with file uploads
+  - **Microsoft Teams**: Webhook-based MessageCard notifications
+  - **Independent Channels**: Enable/disable channels individually via .env or CLI
+  - **CLI Overrides**: Command-line flags override .env defaults for one-time runs
+  - **Graceful Degradation**: Channels fail independently without affecting others
 - 🩺 **System Health Monitoring**: ISE health, Maglev services, backups, and system updates
 - 🏗️ **SDA Fabric Health**: Comprehensive Software-Defined Access fabric monitoring
 - 👥 **Client Health Analysis**: Wired and wireless client connectivity monitoring
@@ -43,7 +53,9 @@ The application uses a modular package structure for improved maintainability an
 - Access to Cisco Catalyst Center with API permissions
 - Network connectivity to your Catalyst Center instance
 - **Optional**: OpenAI API key for AI-powered analysis
-- **Optional**: Webex Teams bot token and space ID for automated messaging
+- **Optional**: SMTP server access for email notifications
+- **Optional**: Webex Teams bot token and space ID for Webex notifications
+- **Optional**: Microsoft Teams incoming webhook URL for Teams notifications
 
 ## Installation
 
@@ -100,9 +112,34 @@ DEFAULT_LIMIT=500
 # AI Integration (for --ai-summary feature)
 OPENAI_API_KEY=sk-your-openai-api-key-here
 
-# Webex Teams Integration
+# =====================================================
+# NOTIFICATION CHANNELS (All Optional)
+# =====================================================
+# Enable/disable individual notification channels
+# CLI flags (--notify-email, --notify-webex, --notify-teams) override these
+
+# Webex Teams Notifications
+ENABLE_WEBEX_NOTIFICATIONS=false
 WEBEX_BOT_TOKEN=your-webex-bot-token-here
 WEBEX_SPACE_ID=your-webex-space-id-here
+
+# Email Notifications (SMTP)
+ENABLE_EMAIL_NOTIFICATIONS=false
+EMAIL_SMTP_SERVER=smtp.gmail.com
+EMAIL_SMTP_PORT=587
+EMAIL_USE_TLS=true
+EMAIL_USE_SSL=false
+EMAIL_USERNAME=your-email@example.com
+EMAIL_PASSWORD=your-app-password-here
+EMAIL_FROM=catalyst-monitor@example.com
+EMAIL_TO=admin@example.com
+EMAIL_CC=                                      # Optional: comma-separated
+EMAIL_BCC=                                     # Optional: comma-separated
+EMAIL_SUBJECT=Catalyst Center Health Report - {timestamp}
+
+# Microsoft Teams Notifications (Incoming Webhook)
+ENABLE_TEAMS_NOTIFICATIONS=false
+TEAMS_WEBHOOK_URL=https://your-org.webhook.office.com/webhookb2/...
 
 # Report Configuration
 OUTPUT_DIRECTORY=reports
@@ -129,6 +166,58 @@ The application validates your configuration on startup and will report:
 
 **Security Note:** The `.env` file is automatically excluded from git tracking. Never commit credentials to version control.
 
+### Notification Channel Setup
+
+#### Email Notifications (SMTP)
+
+Configure SMTP settings in your `.env` file:
+
+```env
+ENABLE_EMAIL_NOTIFICATIONS=true
+EMAIL_SMTP_SERVER=smtp.gmail.com          # Your SMTP server
+EMAIL_SMTP_PORT=587                       # 587 for TLS, 465 for SSL, 25 for unencrypted
+EMAIL_USE_TLS=true                        # Use TLS (recommended for port 587)
+EMAIL_USE_SSL=false                       # Use SSL (for port 465)
+EMAIL_USERNAME=your-email@example.com     # SMTP authentication username
+EMAIL_PASSWORD=your-app-password          # SMTP password or app-specific password
+EMAIL_FROM=catalyst-monitor@example.com   # Sender address
+EMAIL_TO=admin@example.com                # Recipient address
+EMAIL_SUBJECT=Catalyst Center Health Report - {timestamp}
+```
+
+**Popular SMTP Providers:**
+- **Gmail**: `smtp.gmail.com:587` (requires app-specific password)
+- **Office 365**: `smtp.office365.com:587`
+- **SendGrid**: `smtp.sendgrid.net:587`
+- **Custom**: Your organization's SMTP relay
+
+#### Webex Teams Notifications
+
+1. Create a Webex bot at [developer.webex.com](https://developer.webex.com)
+2. Get the bot token and add the bot to your Webex space
+3. Get the space ID (from space settings or API)
+4. Configure in `.env`:
+
+```env
+ENABLE_WEBEX_NOTIFICATIONS=true
+WEBEX_BOT_TOKEN=your-webex-bot-token-here
+WEBEX_SPACE_ID=your-webex-space-id-here
+```
+
+#### Microsoft Teams Notifications
+
+1. In your Teams channel, click **⋯ More options** → **Connectors**
+2. Search for "Incoming Webhook" and click **Configure**
+3. Give it a name (e.g., "Catalyst Health Monitor") and copy the webhook URL
+4. Configure in `.env`:
+
+```env
+ENABLE_TEAMS_NOTIFICATIONS=true
+TEAMS_WEBHOOK_URL=https://your-org.webhook.office.com/webhookb2/...
+```
+
+**Note:** Teams webhooks cannot receive file attachments, so the PDF report location is mentioned in the message.
+
 
 
 ## Usage
@@ -136,22 +225,57 @@ The application validates your configuration on startup and will report:
 ### Basic Health Monitoring
 
 ```bash
-# Generate standard health report (PDF only)
+# Generate standard health report (PDF only, no notifications)
 python3 catalyst_health_monitor.py
 
-# Using the enhanced shell script
+# Using the shell script
 ./run_health_monitor.sh
 ```
 
-### AI-Enhanced Health Monitoring
+### AI-Enhanced Analysis
 
 ```bash
-# Generate health report with AI analysis and Webex messaging
+# Generate AI-powered analysis and summary
 python3 catalyst_health_monitor.py --ai-summary
 
-# Using the enhanced shell script with AI features
+# Using the shell script
 ./run_health_monitor.sh --ai-summary
 ```
+
+### Notification Options
+
+The notification system is flexible and supports multiple channels:
+
+```bash
+# Send notification via email (uses configured .env settings)
+python3 catalyst_health_monitor.py --notify-email
+
+# Send to multiple channels
+python3 catalyst_health_monitor.py --notify-email --notify-webex --notify-teams
+
+# AI analysis with notifications
+python3 catalyst_health_monitor.py --ai-summary --notify-email
+
+# AI analysis without notifications (console only)
+python3 catalyst_health_monitor.py --ai-summary --no-notifications
+
+# Use shell script with notification flags
+./run_health_monitor.sh --notify-webex --notify-teams
+```
+
+**CLI Flags:**
+- `--ai-summary`: Enable AI-powered health analysis
+- `--notify-email`: Send notifications via Email (overrides .env)
+- `--notify-webex`: Send notifications via Webex Teams (overrides .env)
+- `--notify-teams`: Send notifications via MS Teams (overrides .env)
+- `--no-notifications`: Disable all notifications (overrides .env)
+
+**How It Works:**
+1. **Default behavior** (.env not configured): PDF report only, no notifications
+2. **With .env configuration**: Channels enabled in .env send automatically
+3. **With CLI flags**: CLI flags override .env settings for one-time runs
+4. **AI is optional**: Notifications work with or without AI summaries
+5. **Independent channels**: One channel failing doesn't affect others
 
 ### Shell Script Features
 
@@ -160,19 +284,20 @@ The `run_health_monitor.sh` script provides enhanced functionality:
 - **Automatic Environment Setup**: Creates virtual environment if needed
 - **Dependency Validation**: Checks for required and optional packages
 - **Configuration Verification**: Validates `.env` file and required variables
-- **AI Integration Checks**: Verifies AI dependencies and API keys when using `--ai-summary`
+- **Channel Status Checks**: Reports which notification channels are configured
 - **Comprehensive Error Reporting**: Detailed troubleshooting guidance
 - **Help Documentation**: Built-in help with `--help` or `-h`
 
 ```bash
-# Show help and usage options
+# Show help and all available options
 ./run_health_monitor.sh --help
 
-# Run standard monitoring
-./run_health_monitor.sh
-
-# Run AI-enhanced monitoring with Webex integration
-./run_health_monitor.sh --ai-summary
+# Examples from help text
+./run_health_monitor.sh                                  # Standard report only
+./run_health_monitor.sh --ai-summary                     # AI analysis + default notifications
+./run_health_monitor.sh --notify-email                   # Email notification (PDF only)
+./run_health_monitor.sh --ai-summary --notify-email      # AI analysis + email
+./run_health_monitor.sh --notify-webex --notify-teams    # Multi-channel notifications
 ```
 
 ## Testing
@@ -211,19 +336,49 @@ The comprehensive report includes:
 - **Client Health**: Wired and wireless client connectivity issues
 - **System Health**: ISE nodes, Maglev services, backups, and system updates
 
+### Notification Output
+
+When notifications are enabled, the system sends health reports through configured channels:
+
+#### Email Notifications
+- **HTML-formatted email** with professional styling
+- **PDF report attached** as `catalyst_health_report_YYYYMMDD_HHMMSS.pdf`
+- **AI summary included** (if --ai-summary enabled) or basic health summary
+- **Device and issue counts** with health score breakdown
+- **Supports TLS/SSL** for secure SMTP connections
+- **CC/BCC support** for distribution lists
+
+#### Webex Teams Notifications
+- **Markdown-formatted message** posted to configured space
+- **PDF report uploaded** and attached to the message
+- **AI summary or basic summary** included in message text
+- **Timestamp and metrics** for quick reference
+
+#### Microsoft Teams Notifications
+- **MessageCard format** with rich formatting and colors
+- **Health metrics section** with device counts and issues
+- **PDF report location referenced** (Teams webhooks can't upload files)
+- **AI summary or basic summary** included in card text
+- **Actionable facts** section with key statistics
+
+**Message Content:**
+- **With AI** (`--ai-summary`): Intelligent OpenAI-generated health analysis
+- **Without AI**: Basic summary with device counts, issue counts, and health breakdown
+- All channels work independently and can be mixed and matched
+
 ### AI Analysis Output (with --ai-summary)
 
 When using the `--ai-summary` flag, additional outputs include:
 
 1. **Console AI Summary**: Intelligent analysis displayed in the terminal
-2. **Webex Teams Message**: Automated message sent to configured Webex space with:
-   - AI-generated health summary
-   - PDF report attachment
-   - Timestamp and executive overview
+2. **Enhanced Notifications**: AI-generated summaries sent to all enabled channels
+   - Webex Teams: AI summary with PDF attachment
+   - Email: AI summary in HTML email body with PDF
+   - MS Teams: AI summary in MessageCard with PDF reference
 
 ### Log Files
 
-- `catalyst_health_monitor.log`: Detailed execution logs with API calls and errors
+- `catalyst_health_monitor.log`: Detailed execution logs with API calls, errors, and notification delivery status
 
 ## Automation
 
@@ -235,11 +390,17 @@ To run daily at 6 AM:
 # Edit crontab
 crontab -e
 
-# Add this line for standard monitoring:
+# Standard monitoring with PDF only
 0 6 * * * /path/to/CatC-Health/run_health_monitor.sh
 
-# Add this line for AI-enhanced monitoring:
+# AI-enhanced with default notification channels (.env)
 0 6 * * * /path/to/CatC-Health/run_health_monitor.sh --ai-summary
+
+# Email notifications only (override .env)
+0 6 * * * /path/to/CatC-Health/run_health_monitor.sh --ai-summary --notify-email
+
+# Multi-channel notifications
+0 6 * * * /path/to/CatC-Health/run_health_monitor.sh --notify-email --notify-webex --notify-teams
 ```
 
 ### Systemd Timer (Linux)
@@ -256,7 +417,7 @@ After=network.target
 Type=oneshot
 User=your-user
 WorkingDirectory=/path/to/CatC-Health
-ExecStart=/path/to/CatC-Health/run_health_monitor.sh --ai-summary
+ExecStart=/path/to/CatC-Health/run_health_monitor.sh --ai-summary --notify-email
 ```
 
 **Example timer file** (`/etc/systemd/system/catalyst-health.timer`):
@@ -324,19 +485,52 @@ When using the `--ai-summary` flag, the system provides:
 - **Critical Issue Identification**: Highlights urgent issues requiring immediate attention
 - **Actionable Recommendations**: Provides specific next steps for network engineers
 - **Trend Analysis**: Identifies patterns and performance trends
+- **Flexible Delivery**: AI summaries can be viewed in console or sent via notifications
 
-### Webex Teams Integration
-- **Automated Messaging**: Sends AI summaries to configured Webex spaces
-- **PDF Attachments**: Includes detailed reports for comprehensive analysis
-- **Rich Formatting**: Markdown-formatted messages with timestamps
-- **Bot Authentication**: Uses Webex Teams SDK with bot tokens
+## Notification System
+
+### Architecture
+The notification system uses a modular, channel-based architecture:
+
+- **Abstract Base Class**: `NotificationChannel` defines the interface
+- **Independent Channels**: Email, Webex, and Teams operate independently
+- **Notification Manager**: Orchestrates multi-channel delivery
+- **Graceful Degradation**: One channel failing doesn't affect others
+- **Flexible Configuration**: Enable/disable channels via .env or CLI
+
+### Email (SMTP)
+- **Full-featured HTML emails** with professional styling and branding
+- **PDF attachments** for comprehensive reports
+- **TLS/SSL support** for secure connections
+- **Authentication** with username/password or app-specific passwords
+- **CC/BCC support** for distribution lists
+- **Template system** with {timestamp} and health data variables
+
+**Supported SMTP servers**: Gmail, Office 365, SendGrid, custom SMTP relays
+
+### Webex Teams
+- **Bot-based integration** using Webex Teams SDK
+- **File uploads** - PDF reports attached to messages
+- **Markdown formatting** for rich text presentation
+- **Space targeting** - send to specific Webex spaces
+- **Backward compatible** with existing configurations
+
+### Microsoft Teams
+- **Incoming webhooks** - no app registration required
+- **MessageCard format** with rich formatting and colors
+- **Adaptive Cards support** (alternative format)
+- **Health metrics section** with structured facts
+- **PDF reference** (webhooks cannot upload files directly)
 
 ### Error Handling
-The AI and Webex integrations are optional and gracefully degrade if:
-- API keys are missing or invalid
-- Dependencies are not installed
+All notification channels gracefully degrade if:
+- Configuration is missing or invalid
+- Network connectivity issues occur
 - API quota is exceeded
+- Authentication fails
 - Services are unavailable
+
+**Per-channel status reporting** shows which channels succeeded/failed independently.
 
 Specific error messages guide users to resolve configuration issues.
 
@@ -351,10 +545,12 @@ All dependencies are managed in `requirements.txt`:
 - `reportlab>=3.6.0` - PDF generation library
 - `tenacity>=8.2.0` - Retry logic with exponential backoff
 
-### AI and Integration Dependencies (Optional)
+### AI and Notification Dependencies (Optional)
 - `langchain>=0.1.0` - AI framework for structured LLM interactions
 - `langchain-openai>=0.1.0` - OpenAI GPT-4o-mini integration
 - `webexteamssdk>=1.6.0` - Webex Teams API integration
+
+**Note**: Email and Teams notifications use built-in Python libraries and `requests` (already a core dependency), so no additional packages are required for those channels.
 
 ### Testing Dependencies
 - `pytest>=7.4.0` - Unit testing framework
@@ -362,7 +558,8 @@ All dependencies are managed in `requirements.txt`:
 
 **Graceful Degradation**: The application detects missing optional dependencies at runtime:
 - Without `langchain`/`langchain-openai`: The `--ai-summary` flag will display an error message but the PDF report will still generate
-- Without `webexteamssdk`: Webex messaging will be skipped with a warning, but AI analysis and PDF generation continue normally
+- Without `webexteamssdk`: Webex notifications will be skipped with a warning
+- Email and Teams notifications work without additional dependencies
 - The application will never crash due to missing optional dependencies
 
 ## Troubleshooting
@@ -403,22 +600,37 @@ All dependencies are managed in `requirements.txt`:
    - Ensure AI dependencies are installed (langchain, langchain-openai)
    - Review console output for specific AI error messages
 
-7. **Webex Messages Not Sent**
+7. **Email Notifications Not Sent**
+   - Verify SMTP settings in `.env` file (server, port, credentials)
+   - Check `EMAIL_USE_TLS` and `EMAIL_USE_SSL` settings match your SMTP server
+   - For Gmail: Use app-specific password, not account password
+   - Test SMTP connection manually with `telnet smtp.server.com 587`
+   - Check firewall rules allow outbound SMTP connections
+   - Review logs for authentication or connection errors
+
+8. **Webex Notifications Not Sent**
    - Verify `WEBEX_BOT_TOKEN` and `WEBEX_SPACE_ID` in `.env` file
-   - Ensure bot has access to the specified Webex space
+   - Ensure bot has been added to the specified Webex space
    - Install Webex SDK: included in requirements.txt
-   - Check bot permissions in Webex Teams
+   - Test bot token with Webex API explorer
 
-8. **Empty or Incomplete Reports**
-   - Check if devices are registered in Catalyst Center
-   - Verify user permissions for device and assurance data access
-   - Review API endpoint connectivity (some internal APIs may require elevated access)
-   - Check log files for specific API call failures
+9. **Teams Notifications Not Sent**
+   - Verify `TEAMS_WEBHOOK_URL` in `.env` file is correct
+   - Ensure webhook is still active (they can expire if unused)
+   - Check Teams channel still exists and webhook hasn't been removed
+   - Test webhook with `curl -X POST -H 'Content-Type: application/json' -d '{"text":"test"}' WEBHOOK_URL`
+   - Review logs for HTTP errors (400, 404, etc.)
 
-9. **Test Failures**
-   - Run `pytest tests/ -v` to see detailed test output
-   - Ensure all dependencies are installed
-   - Check that test fixtures in `tests/fixtures/` are present
+10. **Empty or Incomplete Reports**
+    - Check if devices are registered in Catalyst Center
+    - Verify user permissions for device and assurance data access
+    - Review API endpoint connectivity (some internal APIs may require elevated access)
+    - Check log files for specific API call failures
+
+11. **Test Failures**
+    - Run `pytest tests/ -v` to see detailed test output
+    - Ensure all dependencies are installed
+    - Check that test fixtures in `tests/fixtures/` are present
 
 ### Logging
 
